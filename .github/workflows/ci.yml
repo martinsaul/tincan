@@ -61,7 +61,7 @@ jobs:
       - name: Build Tincan
         run: cmake --build build
 
-      - name: Run unit tests
+      - name: Run unit and e2e tests
         env:
           QT_QPA_PLATFORM: offscreen
         run: ctest --test-dir build --output-on-failure

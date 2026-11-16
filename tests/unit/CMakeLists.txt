@@ -17,5 +17,8 @@ function(tincan_add_unit_test test_name source_file)
 endfunction()
 
 tincan_add_unit_test(tst_version tst_version.cpp tincan_core)
+tincan_add_unit_test(tst_sipuri tst_sipuri.cpp tincan_core)
+tincan_add_unit_test(tst_accountconfig tst_accountconfig.cpp tincan_core)
+tincan_add_unit_test(tst_accountconfigmapper tst_accountconfigmapper.cpp tincan_sip Tincan::pjproject)
 tincan_add_unit_test(tst_apppaths tst_apppaths.cpp tincan_app)
 tincan_add_unit_test(tst_pjversion tst_pjversion.cpp tincan_sip)
