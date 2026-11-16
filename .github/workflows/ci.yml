@@ -1,0 +1,70 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Tincan contributors
+
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    container:
+      image: debian:trixie
+    steps:
+      - name: Install dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            build-essential \
+            ca-certificates \
+            cmake \
+            curl \
+            git \
+            libasound2-dev \
+            libopus-dev \
+            libpulse-dev \
+            libqt6sql6-sqlite \
+            libspeexdsp-dev \
+            libsrtp2-dev \
+            libssl-dev \
+            ninja-build \
+            pkg-config \
+            python3-pip \
+            qt6-base-dev \
+            qt6-l10n-tools \
+            qt6-svg-dev \
+            qt6-tools-dev \
+            qtkeychain-qt6-dev \
+            uuid-dev \
+            xvfb
+          pip install --break-system-packages lizard
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Cache pjproject installation
+        uses: actions/cache@v4
+        with:
+          path: third_party/pjproject/install
+          key: pjproject-2.17-trixie-${{ hashFiles('tools/build-pjproject.sh') }}
+
+      - name: Build pinned pjproject
+        run: tools/build-pjproject.sh
+
+      - name: Configure Tincan
+        run: cmake -G Ninja -B build -DTINCAN_WERROR=ON
+
+      - name: Build Tincan
+        run: cmake --build build
+
+      - name: Run unit tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Run code size check
+        run: tools/size-check.sh
