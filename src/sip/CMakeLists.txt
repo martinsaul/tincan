@@ -3,6 +3,7 @@
 
 add_library(tincan_sip STATIC
     account_config_mapper.cpp
+    buddy_registry.cpp
     call_controller.cpp
     call_info_mapper.cpp
     call_recorder.cpp
@@ -12,7 +13,9 @@ add_library(tincan_sip STATIC
     event_marshaller.cpp
     pj_version.cpp
     pjsip_engine.cpp
+    presence_mapper.cpp
     sip_account.cpp
+    sip_buddy.cpp
     sip_call.cpp
     sip_endpoint.cpp
     sip_log_writer.cpp

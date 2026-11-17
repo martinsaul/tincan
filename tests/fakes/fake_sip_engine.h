@@ -70,6 +70,24 @@ public:
         QString customWav;
     };
 
+    struct PresenceSubRecord {
+        QString accountId;
+        QString uri;
+    };
+
+    struct OwnPresenceRecord {
+        QString accountId;
+        PresenceState state = PresenceState::Unknown;
+        QString note;
+    };
+
+    struct SentMessageRecord {
+        QString accountId;
+        QString uri;
+        QString body;
+        quint64 token = 0;
+    };
+
     explicit FakeSipEngine(ISipEvents *events = nullptr);
 
     void setEvents(ISipEvents *events);
@@ -109,14 +127,25 @@ public:
     void startTone(Tone tone, const QString &customWav = {}) override;
     void stopTone() override;
 
+    bool subscribePresence(const QString &accountId, const QString &uri) override;
+    void unsubscribePresence(const QString &uri) override;
+    bool setOwnPresence(const QString &accountId, PresenceState state,
+                        const QString &note = {}) override;
+    bool sendMessage(const QString &accountId, const QString &uri, const QString &body,
+                     quint64 token) override;
+
     void injectRegistration(const RegistrationInfo &info);
     int injectIncomingCall(const QString &accountId, const QString &remoteUri,
                            const QString &displayName = {},
                            const QMap<QString, QString> &headers = {});
     void injectCallState(int callId, CallState state, int statusCode = 0,
                          const QString &reason = {});
+    void injectPresence(const PresenceInfo &info);
+    void injectIncomingMessage(const MessageInfo &info);
+    void injectMessageStatus(quint64 token, int statusCode, const QString &reason = {});
 
     bool started = true;
+    bool acceptSendMessage = true;
     int udpPort = 50600;
     int nextCallId = 1;
 
@@ -150,6 +179,12 @@ public:
     QList<ToneRecord> startedTones;
     int stopToneCount = 0;
     std::optional<Tone> currentTone;
+
+    QMap<QString, QString> activePresenceSubscriptions;
+    QList<PresenceSubRecord> subscribedPresences;
+    QStringList unsubscribedPresences;
+    QList<OwnPresenceRecord> ownPresenceChanges;
+    QList<SentMessageRecord> sentMessages;
 
 private:
     void notifyUpdated(int callId);

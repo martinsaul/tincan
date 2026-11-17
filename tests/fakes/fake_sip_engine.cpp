@@ -30,6 +30,7 @@ void FakeSipEngine::shutdown() {
     started = false;
     activeCalls_.clear();
     activeAccounts.clear();
+    activePresenceSubscriptions.clear();
 }
 
 int FakeSipEngine::localUdpPort() const { return udpPort; }
@@ -249,6 +250,38 @@ void FakeSipEngine::stopTone() {
     currentTone.reset();
 }
 
+bool FakeSipEngine::subscribePresence(const QString &accountId, const QString &uri) {
+    if (!activeAccounts.contains(accountId) || uri.trimmed().isEmpty()) {
+        return false;
+    }
+    activePresenceSubscriptions.insert(uri, accountId);
+    subscribedPresences.append(PresenceSubRecord{accountId, uri});
+    return true;
+}
+
+void FakeSipEngine::unsubscribePresence(const QString &uri) {
+    activePresenceSubscriptions.remove(uri);
+    unsubscribedPresences.append(uri);
+}
+
+bool FakeSipEngine::setOwnPresence(const QString &accountId, PresenceState state,
+                                   const QString &note) {
+    if (!activeAccounts.contains(accountId)) {
+        return false;
+    }
+    ownPresenceChanges.append(OwnPresenceRecord{accountId, state, note});
+    return true;
+}
+
+bool FakeSipEngine::sendMessage(const QString &accountId, const QString &uri, const QString &body,
+                                quint64 token) {
+    if (!acceptSendMessage || !activeAccounts.contains(accountId) || uri.trimmed().isEmpty()) {
+        return false;
+    }
+    sentMessages.append(SentMessageRecord{accountId, uri, body, token});
+    return true;
+}
+
 void FakeSipEngine::injectRegistration(const RegistrationInfo &info) {
     if (events_ != nullptr) {
         events_->onRegistrationChanged(info);
@@ -291,6 +324,24 @@ void FakeSipEngine::injectCallState(int callId, CallState state, int statusCode,
     }
     if (events_ != nullptr) {
         events_->onCallChanged(info);
+    }
+}
+
+void FakeSipEngine::injectPresence(const PresenceInfo &info) {
+    if (events_ != nullptr) {
+        events_->onPresenceChanged(info);
+    }
+}
+
+void FakeSipEngine::injectIncomingMessage(const MessageInfo &info) {
+    if (events_ != nullptr) {
+        events_->onIncomingMessage(info);
+    }
+}
+
+void FakeSipEngine::injectMessageStatus(quint64 token, int statusCode, const QString &reason) {
+    if (events_ != nullptr) {
+        events_->onMessageStatus(token, statusCode, reason);
     }
 }
 

@@ -12,8 +12,8 @@
 
 namespace tincan::ui {
 
-CallPanel::CallPanel(CallService &callService, QWidget *parent)
-    : QWidget(parent), callService_(callService) {
+CallPanel::CallPanel(CallService &callService, ContactService *contactService, QWidget *parent)
+    : QWidget(parent), callService_(callService), contactService_(contactService) {
     setObjectName(QStringLiteral("callPanel"));
     auto *root = new QVBoxLayout(this);
     root->setContentsMargins(8, 4, 8, 4);
@@ -46,6 +46,10 @@ CallPanel::CallPanel(CallService &callService, QWidget *parent)
             card->appendDtmfEcho(digits);
         }
     });
+    if (contactService_ != nullptr) {
+        connect(contactService_, &ContactService::contactsChanged, this,
+                &CallPanel::refreshContactNames);
+    }
 
     for (const CallInfo &call : callService_.calls()) {
         onCallAdded(call);
@@ -54,21 +58,38 @@ CallPanel::CallPanel(CallService &callService, QWidget *parent)
 }
 
 QList<CallCard *> CallPanel::cards() const { return cards_.values(); }
-
 CallCard *CallPanel::cardForCall(int callId) const { return cards_.value(callId, nullptr); }
-
 QPushButton *CallPanel::mergeButton() const { return mergeButton_; }
 
+CallInfo CallPanel::enrichWithContactName(CallInfo info) const {
+    if (contactService_ != nullptr) {
+        const QString resolved = contactService_->resolveDisplayName(info.remoteUri);
+        if (!resolved.isEmpty()) {
+            info.remoteDisplayName = resolved;
+        }
+    }
+    return info;
+}
+
+void CallPanel::refreshContactNames() {
+    for (const CallInfo &call : callService_.calls()) {
+        if (CallCard *card = cards_.value(call.callId, nullptr)) {
+            card->updateCall(enrichWithContactName(call));
+        }
+    }
+}
+
 void CallPanel::onCallAdded(const CallInfo &info) {
-    if (cards_.contains(info.callId)) {
-        cards_[info.callId]->updateCall(info);
+    const CallInfo enriched = enrichWithContactName(info);
+    if (cards_.contains(enriched.callId)) {
+        cards_[enriched.callId]->updateCall(enriched);
         syncVisibility();
         return;
     }
 
-    auto *card = new CallCard(info, this);
+    auto *card = new CallCard(enriched, this);
     connectCardSignals(card);
-    cards_.insert(info.callId, card);
+    cards_.insert(enriched.callId, card);
     cardsLayout_->addWidget(card);
     refreshActiveHighlights();
     syncVisibility();
@@ -76,7 +97,7 @@ void CallPanel::onCallAdded(const CallInfo &info) {
 
 void CallPanel::onCallUpdated(const CallInfo &info) {
     if (CallCard *card = cards_.value(info.callId, nullptr)) {
-        card->updateCall(info);
+        card->updateCall(enrichWithContactName(info));
         refreshActiveHighlights();
         syncVisibility();
     } else {
@@ -130,7 +151,7 @@ void CallPanel::openTransferDialog(int callId) {
     QList<CallInfo> others;
     for (const CallInfo &c : callService_.calls()) {
         if (c.callId != callId && c.state == CallState::Confirmed) {
-            others.append(c);
+            others.append(enrichWithContactName(c));
         }
     }
 

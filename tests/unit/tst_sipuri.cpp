@@ -73,6 +73,22 @@ private slots:
         tincan::AccountConfig noDomain;
         QVERIFY(tincan::SipUri::toSipUri(QStringLiteral("100"), noDomain).isEmpty());
     }
+
+    void splitsNameAddrAndExtractsUserAndContactKeys() {
+        const auto [uri, name] = tincan::SipUri::splitNameAddr(
+            QStringLiteral("\"Alice \\\"AJ\\\"\" <sip:204@pbx.example.com:5060;transport=udp>"));
+        QCOMPARE(name, QStringLiteral("Alice \"AJ\""));
+        QCOMPARE(uri, QStringLiteral("sip:204@pbx.example.com:5060;transport=udp"));
+
+        QCOMPARE(tincan::SipUri::bareSipUri(
+                     QStringLiteral("\"Alice\" <sip:204@pbx.example.com;transport=udp>")),
+                 QStringLiteral("sip:204@pbx.example.com"));
+        QCOMPARE(tincan::SipUri::extractUserPart(QStringLiteral("sip:204@pbx.example.com")),
+                 QStringLiteral("204"));
+        QVERIFY(tincan::SipUri::extractUserPart(QStringLiteral("sip:127.0.0.1:5060")).isEmpty());
+        QCOMPARE(tincan::SipUri::normalizeContactKey(QStringLiteral("+1 (555) 204-0001")),
+                 tincan::SipUri::normalizeContactKey(QStringLiteral("+15552040001")));
+    }
 };
 
 QTEST_APPLESS_MAIN(TestSipUri)

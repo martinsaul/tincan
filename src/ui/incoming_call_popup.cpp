@@ -16,15 +16,6 @@ namespace tincan::ui {
 
 namespace {
 
-QString formatPopupCaller(const CallInfo &info) {
-    const QString name = info.remoteDisplayName.trimmed();
-    const QString uri = info.remoteUri.trimmed();
-    if (!name.isEmpty() && !uri.isEmpty()) {
-        return QStringLiteral("%1\n%2").arg(name, uri);
-    }
-    return name.isEmpty() ? uri : name;
-}
-
 QPushButton *makePopupButton(const QIcon &icon, const QString &text, const QString &objName,
                              const QString &bgHex, QWidget *parent) {
     auto *btn = new QPushButton(icon, text, parent);
@@ -37,9 +28,10 @@ QPushButton *makePopupButton(const QIcon &icon, const QString &text, const QStri
 
 } // namespace
 
-IncomingCallPopup::IncomingCallPopup(CallService &callService, QWidget *parent)
+IncomingCallPopup::IncomingCallPopup(CallService &callService, ContactService *contactService,
+                                     QWidget *parent)
     : QFrame(parent, Qt::Tool | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint),
-      callService_(callService) {
+      callService_(callService), contactService_(contactService) {
     setObjectName(QStringLiteral("incomingCallPopup"));
     setFixedWidth(280);
     setStyleSheet(QStringLiteral(
@@ -91,15 +83,17 @@ IncomingCallPopup::IncomingCallPopup(CallService &callService, QWidget *parent)
             [this](const CallInfo &) { onCallChangedOrRemoved(); });
     connect(&callService_, &CallService::callRemoved, this,
             [this](const CallInfo &) { onCallChangedOrRemoved(); });
+    if (contactService_ != nullptr) {
+        connect(contactService_, &ContactService::contactsChanged, this,
+                &IncomingCallPopup::onCallChangedOrRemoved);
+    }
 }
 
-int IncomingCallPopup::currentCallId() const {
-    return currentCallId_;
-}
+int IncomingCallPopup::currentCallId() const { return currentCallId_; }
 
-void IncomingCallPopup::onIncomingCall(const CallInfo &info) {
-    showForCall(info);
-}
+QString IncomingCallPopup::callerText() const { return callerLabel_->text(); }
+
+void IncomingCallPopup::onIncomingCall(const CallInfo &info) { showForCall(info); }
 
 void IncomingCallPopup::onCallChangedOrRemoved() {
     for (const CallInfo &c : callService_.calls()) {
@@ -120,11 +114,26 @@ void IncomingCallPopup::onCallChangedOrRemoved() {
 
 void IncomingCallPopup::showForCall(const CallInfo &info) {
     currentCallId_ = info.callId;
-    callerLabel_->setText(formatPopupCaller(info));
+    callerLabel_->setText(formatCaller(info));
     adjustSize();
     positionBottomRight();
     show();
     raise();
+}
+
+QString IncomingCallPopup::formatCaller(const CallInfo &info) const {
+    QString name = info.remoteDisplayName.trimmed();
+    if (contactService_ != nullptr) {
+        const QString contactName = contactService_->resolveDisplayName(info.remoteUri);
+        if (!contactName.isEmpty()) {
+            name = contactName;
+        }
+    }
+    const QString uri = info.remoteUri.trimmed();
+    if (!name.isEmpty() && !uri.isEmpty()) {
+        return QStringLiteral("%1\n%2").arg(name, uri);
+    }
+    return name.isEmpty() ? uri : name;
 }
 
 void IncomingCallPopup::positionBottomRight() {

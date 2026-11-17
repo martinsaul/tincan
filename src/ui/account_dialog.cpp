@@ -111,6 +111,8 @@ void AccountDialog::buildNetworkFields(QFormLayout *form) {
     dialPrefixEdit_->setObjectName(QStringLiteral("dialPrefixEdit"));
     voicemailEdit_ = new QLineEdit(this);
     voicemailEdit_->setObjectName(QStringLiteral("voicemailEdit"));
+    publishPresenceCheck_ = new QCheckBox(tr("Publish presence"), this);
+    publishPresenceCheck_->setObjectName(QStringLiteral("publishPresenceCheck"));
 
     form->addRow(tr("Transport:"), transportCombo_);
     form->addRow(tr("Media encryption (SRTP):"), srtpCombo_);
@@ -121,6 +123,7 @@ void AccountDialog::buildNetworkFields(QFormLayout *form) {
     form->addRow(tr("Public address:"), publicAddressEdit_);
     form->addRow(tr("Dial prefix:"), dialPrefixEdit_);
     form->addRow(tr("Voicemail number:"), voicemailEdit_);
+    form->addRow(QString{}, publishPresenceCheck_);
 }
 
 void AccountDialog::populate(const AccountConfig &cfg) {
@@ -146,6 +149,7 @@ void AccountDialog::populate(const AccountConfig &cfg) {
     publicAddressEdit_->setText(cfg.publicAddress);
     dialPrefixEdit_->setText(cfg.dialPrefix);
     voicemailEdit_->setText(cfg.voicemailNumber);
+    publishPresenceCheck_->setChecked(cfg.publishPresence);
 }
 
 void AccountDialog::setPasswordFieldIfUnmodified(const QString &password) {
@@ -175,6 +179,7 @@ AccountConfig AccountDialog::accountConfig() const {
     cfg.publicAddress = publicAddressEdit_->text().trimmed();
     cfg.dialPrefix = dialPrefixEdit_->text().trimmed();
     cfg.voicemailNumber = voicemailEdit_->text().trimmed();
+    cfg.publishPresence = publishPresenceCheck_->isChecked();
     return cfg;
 }
 

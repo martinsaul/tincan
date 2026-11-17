@@ -5,6 +5,7 @@
 
 #include "core/sip_uri.h"
 #include "sip/account_config_mapper.h"
+#include "sip/buddy_registry.h"
 #include "sip/call_controller.h"
 #include "sip/event_marshaller.h"
 #include "sip/sip_account.h"
@@ -36,7 +37,8 @@ PjsipEngine::PjsipEngine(ISipEvents &events)
           events_, *endpoint_, *marshaller_,
           [this](const QString &accId, const QString &uri) {
               return resolveUriForAccount(accId, uri);
-          })) {}
+          })),
+      buddyRegistry_(std::make_unique<BuddyRegistry>(events_, *marshaller_)) {}
 
 PjsipEngine::~PjsipEngine() {
     shutdown();
@@ -65,6 +67,7 @@ void PjsipEngine::shutdown() {
     endpoint_->stopWorkerThreads();
     QCoreApplication::removePostedEvents(marshaller_.get());
     callController_->clearAll();
+    buddyRegistry_->clear();
     accounts_.clear();
     endpoint_->shutdown();
 }
@@ -92,15 +95,22 @@ bool PjsipEngine::addAccount(const AccountConfig &config, QString *error) {
             endpoint_->updateStunServer(config.stunServer);
         }
         const pj::AccountConfig pjCfg = AccountConfigMapper::map(config);
-        auto regCb = [this](const RegistrationInfo &info) { events_.onRegistrationChanged(info); };
-        auto incCb = [this](std::unique_ptr<SipCall> call, const CallInfo &info) {
-            callController_->adoptIncomingCall(std::move(call), info);
+        SipAccount::AccountCallbacks accCbs{
+            [this](const RegistrationInfo &info) { events_.onRegistrationChanged(info); },
+            [this](std::unique_ptr<SipCall> call, const CallInfo &info) {
+                callController_->adoptIncomingCall(std::move(call), info);
+            },
+            [this](const MessageInfo &info) { events_.onIncomingMessage(info); },
+            [this](quint64 token, int code, const QString &reason) {
+                events_.onMessageStatus(token, code, reason);
+            },
         };
 
-        auto account = std::make_unique<SipAccount>(
-            config, endpoint_->pjEndpoint(), *marshaller_, std::move(regCb), std::move(incCb),
-            callController_->makeCallCallbacks());
+        auto account = std::make_unique<SipAccount>(config, endpoint_->pjEndpoint(), *marshaller_,
+                                                    std::move(accCbs),
+                                                    callController_->makeCallCallbacks());
         account->create(pjCfg, accounts_.empty());
+        (void)account->setOwnPresence(PresenceState::Online, {});
         accounts_.emplace(config.id, std::move(account));
         return true;
     } catch (const pj::Error &err) {
@@ -115,6 +125,7 @@ void PjsipEngine::removeAccount(const QString &accountId) {
         return;
     }
     const bool wasDefault = it->second->isDefault();
+    buddyRegistry_->removeForAccount(accountId);
     it->second->shutdown();
     accounts_.erase(it);
 
@@ -192,6 +203,53 @@ void PjsipEngine::startTone(Tone tone, const QString &customWav) {
     tonePlayer_->startTone(tone, customWav);
 }
 void PjsipEngine::stopTone() { tonePlayer_->stopTone(); }
+
+bool PjsipEngine::subscribePresence(const QString &accountId, const QString &uri) {
+    if (!endpoint_->isStarted()) {
+        return false;
+    }
+    const auto it = accounts_.find(accountId);
+    if (it == accounts_.end()) {
+        return false;
+    }
+    const QString targetUri = SipUri::toSipUri(uri, it->second->config());
+    if (targetUri.isEmpty()) {
+        return false;
+    }
+    return buddyRegistry_->subscribe(*it->second, accountId, targetUri);
+}
+
+void PjsipEngine::unsubscribePresence(const QString &uri) {
+    buddyRegistry_->unsubscribe(uri);
+}
+
+bool PjsipEngine::setOwnPresence(const QString &accountId, PresenceState state,
+                                 const QString &note) {
+    if (!endpoint_->isStarted()) {
+        return false;
+    }
+    const auto it = accounts_.find(accountId);
+    if (it == accounts_.end()) {
+        return false;
+    }
+    return it->second->setOwnPresence(state, note);
+}
+
+bool PjsipEngine::sendMessage(const QString &accountId, const QString &uri, const QString &body,
+                              quint64 token) {
+    if (!endpoint_->isStarted()) {
+        return false;
+    }
+    const auto it = accounts_.find(accountId);
+    if (it == accounts_.end()) {
+        return false;
+    }
+    const QString targetUri = SipUri::toSipUri(uri, it->second->config());
+    if (targetUri.isEmpty()) {
+        return false;
+    }
+    return it->second->sendMessage(targetUri, body, token);
+}
 
 QString PjsipEngine::resolveUriForAccount(const QString &accountId, const QString &uri) const {
     const auto it = accounts_.find(accountId);

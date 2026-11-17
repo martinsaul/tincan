@@ -15,18 +15,30 @@ add_library(tincan_ui STATIC
     call_panel.cpp
     calls_page.h
     calls_page.cpp
+    chat_window.h
+    chat_window.cpp
+    contact_dialog.h
+    contact_dialog.cpp
+    contacts_view.h
+    contacts_view.cpp
     dialpad_widget.h
     dialpad_widget.cpp
     dtmf_pad.h
     dtmf_pad.cpp
     general_page.h
     general_page.cpp
+    header_bar.h
+    header_bar.cpp
+    history_view.h
+    history_view.cpp
     icons.h
     icons.cpp
     incoming_call_popup.h
     incoming_call_popup.cpp
     main_window.h
     main_window.cpp
+    messages_view.h
+    messages_view.cpp
     settings_dialog.h
     settings_dialog.cpp
     transfer_dialog.h

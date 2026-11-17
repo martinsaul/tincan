@@ -21,13 +21,22 @@ tincan_add_unit_test(tst_sipuri tst_sipuri.cpp tincan_core)
 tincan_add_unit_test(tst_sipheaders tst_sipheaders.cpp tincan_core)
 tincan_add_unit_test(tst_accountconfig tst_accountconfig.cpp tincan_core)
 tincan_add_unit_test(tst_accountconfigmapper tst_accountconfigmapper.cpp tincan_sip Tincan::pjproject)
+tincan_add_unit_test(tst_presencemapper tst_presencemapper.cpp tincan_sip Tincan::pjproject)
 tincan_add_unit_test(tst_apppaths tst_apppaths.cpp tincan_app)
 tincan_add_unit_test(tst_autoanswerpolicy tst_autoanswerpolicy.cpp tincan_app)
 tincan_add_unit_test(tst_forwardingpolicy tst_forwardingpolicy.cpp tincan_app)
 tincan_add_unit_test(tst_pjversion tst_pjversion.cpp tincan_sip)
 tincan_add_unit_test(tst_settingsstore tst_settingsstore.cpp tincan_app)
+tincan_add_unit_test(tst_database_migrations tst_database_migrations.cpp tincan_app)
+tincan_add_unit_test(tst_repositories tst_repositories.cpp tincan_app)
+tincan_add_unit_test(tst_contactcsv tst_contactcsv.cpp tincan_app)
 
-foreach(svc_test IN ITEMS tst_accountservice tst_callservice)
+foreach(svc_test IN ITEMS
+        tst_accountservice
+        tst_callservice
+        tst_historyservice
+        tst_contactservice
+        tst_messageservice)
     add_executable(${svc_test}
         ${svc_test}.cpp
         "${CMAKE_SOURCE_DIR}/tests/fakes/fake_sip_engine.cpp"

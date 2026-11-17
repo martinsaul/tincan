@@ -140,6 +140,7 @@ AccountConfig readOneAccount(QSettings &s) {
     cfg.publicAddress = s.value(QStringLiteral("publicAddress")).toString();
     cfg.dialPrefix = s.value(QStringLiteral("dialPrefix")).toString();
     cfg.voicemailNumber = s.value(QStringLiteral("voicemailNumber")).toString();
+    cfg.publishPresence = s.value(QStringLiteral("publishPresence"), false).toBool();
     return cfg;
 }
 
@@ -160,6 +161,7 @@ void writeOneAccount(QSettings &s, const AccountConfig &cfg) {
     s.setValue(QStringLiteral("publicAddress"), cfg.publicAddress);
     s.setValue(QStringLiteral("dialPrefix"), cfg.dialPrefix);
     s.setValue(QStringLiteral("voicemailNumber"), cfg.voicemailNumber);
+    s.setValue(QStringLiteral("publishPresence"), cfg.publishPresence);
 }
 
 } // namespace

@@ -4,61 +4,28 @@
 #include "ui/main_window.h"
 
 #include "ui/call_panel.h"
+#include "ui/contacts_view.h"
 #include "ui/dialpad_widget.h"
+#include "ui/header_bar.h"
+#include "ui/history_view.h"
 #include "ui/icons.h"
+#include "ui/messages_view.h"
 #include "ui/settings_dialog.h"
 
 #include <QAction>
 #include <QCloseEvent>
-#include <QComboBox>
 #include <QCoreApplication>
 #include <QEvent>
-#include <QHBoxLayout>
 #include <QKeyEvent>
-#include <QKeySequence>
 #include <QLabel>
-#include <QMenu>
-#include <QSignalBlocker>
+#include <QLineEdit>
 #include <QTabWidget>
 #include <QTimer>
-#include <QToolButton>
 #include <QVBoxLayout>
 
 namespace tincan::ui {
 
 namespace {
-
-QString formatAccountShortLabel(const AccountConfig &acc) {
-    if (!acc.displayName.trimmed().isEmpty()) {
-        return acc.displayName.trimmed();
-    }
-    if (!acc.user.trimmed().isEmpty()) {
-        return QStringLiteral("%1@%2").arg(acc.user.trimmed(), acc.domain.trimmed());
-    }
-    return acc.domain.trimmed();
-}
-
-QString formatRegistrationTooltip(const RegistrationInfo &reg, bool hasAccount) {
-    if (!hasAccount) {
-        return MainWindow::tr("No SIP account configured");
-    }
-    switch (reg.state) {
-    case RegState::Unregistered:
-        return MainWindow::tr("Unregistered");
-    case RegState::Registering:
-        return MainWindow::tr("Registering...");
-    case RegState::Registered:
-        return reg.statusCode > 0
-                   ? MainWindow::tr("Registered (%1 %2)").arg(reg.statusCode).arg(reg.reason)
-                   : MainWindow::tr("Registered");
-    case RegState::Failed:
-        return reg.statusCode > 0 ? MainWindow::tr("Registration failed (%1 %2)")
-                                        .arg(reg.statusCode)
-                                        .arg(reg.reason)
-                                  : MainWindow::tr("Registration failed");
-    }
-    return MainWindow::tr("Unregistered");
-}
 
 bool isDtmfKeyChar(QChar ch) {
     return (ch >= u'0' && ch <= u'9') || ch == u'*' || ch == u'#';
@@ -67,10 +34,12 @@ bool isDtmfKeyChar(QChar ch) {
 } // namespace
 
 MainWindow::MainWindow(AccountService &accountService, CallService &callService,
-                       AudioService &audioService, SettingsStore &settingsStore,
-                       ISecretStore &secretStore, QWidget *parent)
+                       AudioService &audioService, ContactService &contactService,
+                       HistoryService &historyService, MessageService &messageService,
+                       SettingsStore &settingsStore, ISecretStore &secretStore, QWidget *parent)
     : QMainWindow(parent), accountService_(accountService), callService_(callService),
-      audioService_(audioService), settingsStore_(settingsStore), secretStore_(secretStore) {
+      audioService_(audioService), contactService_(contactService), historyService_(historyService),
+      messageService_(messageService), settingsStore_(settingsStore), secretStore_(secretStore) {
     setObjectName(QStringLiteral("mainWindow"));
     setWindowTitle(tr("Tincan"));
     setWindowIcon(Icons::appIcon());
@@ -82,7 +51,10 @@ MainWindow::MainWindow(AccountService &accountService, CallService &callService,
     root->setContentsMargins(0, 0, 0, 0);
     root->setSpacing(0);
 
-    root->addWidget(buildHeaderBar());
+    headerBar_ = new HeaderBar(accountService_, callService_, central);
+    addAction(headerBar_->settingsAction());
+    addAction(headerBar_->quitAction());
+    root->addWidget(headerBar_);
 
     errorLabel_ = new QLabel(central);
     errorLabel_->setObjectName(QStringLiteral("errorBanner"));
@@ -93,118 +65,74 @@ MainWindow::MainWindow(AccountService &accountService, CallService &callService,
     errorLabel_->setVisible(false);
     root->addWidget(errorLabel_);
 
-    callPanel_ = new CallPanel(callService_, central);
+    callPanel_ = new CallPanel(callService_, &contactService_, central);
     root->addWidget(callPanel_);
 
-    tabs_ = new QTabWidget(central);
-    tabs_->setObjectName(QStringLiteral("mainTabs"));
-    tabs_->setDocumentMode(true);
-
-    dialpad_ = new DialpadWidget(tabs_);
-    connect(dialpad_, &DialpadWidget::dialRequested, this, &MainWindow::onDialRequested);
-
-    tabs_->addTab(dialpad_, tr("Dial"));
-    tabs_->addTab(createComingSoonPlaceholder(), tr("Contacts"));
-    tabs_->addTab(createComingSoonPlaceholder(), tr("History"));
-    tabs_->addTab(createComingSoonPlaceholder(), tr("Messages"));
+    setupTabs(central);
     root->addWidget(tabs_, 1);
-
     setCentralWidget(central);
 
     if (QCoreApplication *app = QCoreApplication::instance()) {
         app->installEventFilter(this);
     }
 
-    connect(&accountService_, &AccountService::accountsChanged, this,
-            &MainWindow::refreshAccountsCombo);
-    connect(&accountService_, &AccountService::defaultAccountChanged, this,
-            [this](const QString &) { refreshAccountsCombo(); });
-    connect(&accountService_, &AccountService::registrationChanged, this,
-            [this](const RegistrationInfo &) { refreshStatusIndicator(); });
-    connect(&callService_, &CallService::dndChanged, this, &MainWindow::refreshDndState);
+    connectSignals();
+    refreshHistoryTabBadge();
+    refreshMessagesTabBadge();
+}
+
+void MainWindow::setupTabs(QWidget *central) {
+    tabs_ = new QTabWidget(central);
+    tabs_->setObjectName(QStringLiteral("mainTabs"));
+    tabs_->setDocumentMode(true);
+
+    dialpad_ = new DialpadWidget(tabs_);
+    contactsView_ = new ContactsView(contactService_, accountService_, tabs_);
+    historyView_ = new HistoryView(historyService_, contactService_, accountService_, tabs_);
+    messagesView_ = new MessagesView(messageService_, contactService_, accountService_, tabs_);
+
+    tabs_->addTab(dialpad_, tr("Dial"));
+    tabs_->addTab(contactsView_, tr("Contacts"));
+    historyTabIndex_ = tabs_->addTab(historyView_, tr("History"));
+    messagesTabIndex_ = tabs_->addTab(messagesView_, tr("Messages"));
+}
+
+void MainWindow::connectSignals() {
+    connect(headerBar_, &HeaderBar::settingsRequested, this, &MainWindow::openSettingsDialog);
+    connect(headerBar_, &HeaderBar::quitRequested, this, &MainWindow::requestQuit);
+    connect(dialpad_, &DialpadWidget::dialRequested, this, &MainWindow::onDialRequested);
+    connect(contactsView_, &ContactsView::callRequested, this,
+            &MainWindow::onDialOnAccountRequested);
+    connect(contactsView_, &ContactsView::messageRequested, this,
+            [this](const QString &num, const QString &accId) {
+                (void)messagesView_->openChatForPeer(num, accId);
+            });
+    connect(historyView_, &HistoryView::callRequested, this,
+            &MainWindow::onDialOnAccountRequested);
+    connect(historyView_, &HistoryView::messageRequested, this,
+            [this](const QString &uri, const QString &accId) {
+                (void)messagesView_->openChatForPeer(uri, accId);
+            });
+    connect(messagesView_, &MessagesView::callRequested, this,
+            &MainWindow::onDialOnAccountRequested);
+    connect(tabs_, &QTabWidget::currentChanged, this, &MainWindow::onTabChanged);
+
+    connect(&historyService_, &HistoryService::missedCountChanged, this,
+            [this](int) { refreshHistoryTabBadge(); });
+    connect(&messageService_, &MessageService::unreadCountChanged, this,
+            [this](int) { refreshMessagesTabBadge(); });
     connect(&callService_, &CallService::errorOccurred, this, &MainWindow::showErrorBanner);
-
-    refreshAccountsCombo();
-    refreshDndState(callService_.isDnd());
-}
-
-QWidget *MainWindow::buildHeaderBar() {
-    auto *bar = new QWidget(this);
-    bar->setObjectName(QStringLiteral("headerBar"));
-    bar->setStyleSheet(QStringLiteral(
-        "QWidget#headerBar { background-color: #f1f5f9; border-bottom: 1px solid #cbd5e1; }"));
-
-    auto *layout = new QHBoxLayout(bar);
-    layout->setContentsMargins(8, 6, 8, 6);
-    layout->setSpacing(6);
-
-    statusDot_ = new QLabel(bar);
-    statusDot_->setObjectName(QStringLiteral("statusDot"));
-    statusDot_->setFixedSize(14, 14);
-    statusDot_->setAlignment(Qt::AlignCenter);
-
-    accountCombo_ = new QComboBox(bar);
-    accountCombo_->setObjectName(QStringLiteral("accountCombo"));
-    connect(accountCombo_, &QComboBox::currentIndexChanged, this,
-            &MainWindow::onAccountComboChanged);
-
-    dndBadge_ = new QLabel(tr("DND"), bar);
-    dndBadge_->setObjectName(QStringLiteral("dndBadge"));
-    dndBadge_->setToolTip(tr("Do Not Disturb is active"));
-    dndBadge_->setStyleSheet(QStringLiteral(
-        "background-color: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; "
-        "border-radius: 3px; padding: 1px 5px; font-size: 10px; font-weight: bold;"));
-    dndBadge_->setVisible(false);
-
-    menuButton_ = new QToolButton(bar);
-    menuButton_->setObjectName(QStringLiteral("menuButton"));
-    menuButton_->setIcon(Icons::settings());
-    menuButton_->setToolTip(tr("Menu"));
-    menuButton_->setPopupMode(QToolButton::InstantPopup);
-    menuButton_->setMenu(buildHeaderMenu(menuButton_));
-
-    layout->addWidget(statusDot_);
-    layout->addWidget(accountCombo_, 1);
-    layout->addWidget(dndBadge_);
-    layout->addWidget(menuButton_);
-    return bar;
-}
-
-QMenu *MainWindow::buildHeaderMenu(QWidget *parent) {
-    auto *menu = new QMenu(parent);
-    dndAction_ = menu->addAction(tr("Do Not Disturb"));
-    dndAction_->setCheckable(true);
-    dndAction_->setChecked(callService_.isDnd());
-    connect(dndAction_, &QAction::toggled, &callService_, &CallService::setDnd);
-
-    menu->addSeparator();
-    QAction *settingsAct = menu->addAction(Icons::settings(), tr("Settings..."));
-    settingsAct->setShortcut(QKeySequence::Preferences);
-    connect(settingsAct, &QAction::triggered, this, &MainWindow::openSettingsDialog);
-    addAction(settingsAct);
-
-    menu->addSeparator();
-    QAction *quitAct = menu->addAction(tr("Quit"));
-    quitAct->setShortcut(QKeySequence::Quit);
-    connect(quitAct, &QAction::triggered, this, &MainWindow::requestQuit);
-    addAction(quitAct);
-    return menu;
-}
-
-QWidget *MainWindow::createComingSoonPlaceholder() const {
-    auto *page = new QWidget();
-    auto *vbox = new QVBoxLayout(page);
-    auto *label = new QLabel(tr("Coming soon"), page);
-    label->setAlignment(Qt::AlignCenter);
-    label->setStyleSheet(QStringLiteral("color: #64748b; font-size: 13px;"));
-    vbox->addWidget(label);
-    return page;
 }
 
 DialpadWidget *MainWindow::dialpad() const { return dialpad_; }
 CallPanel *MainWindow::callPanel() const { return callPanel_; }
-QLabel *MainWindow::dndBadge() const { return dndBadge_; }
-QAction *MainWindow::dndAction() const { return dndAction_; }
+ContactsView *MainWindow::contactsView() const { return contactsView_; }
+HistoryView *MainWindow::historyView() const { return historyView_; }
+MessagesView *MainWindow::messagesView() const { return messagesView_; }
+QTabWidget *MainWindow::tabs() const { return tabs_; }
+QComboBox *MainWindow::presenceCombo() const { return headerBar_->presenceCombo(); }
+QLabel *MainWindow::dndBadge() const { return headerBar_->dndBadge(); }
+QAction *MainWindow::dndAction() const { return headerBar_->dndAction(); }
 
 void MainWindow::openSettingsDialog() {
     SettingsDialog dlg(accountService_, audioService_, settingsStore_, secretStore_, this);
@@ -231,7 +159,9 @@ void MainWindow::closeEvent(QCloseEvent *event) {
 bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
     if (event->type() == QEvent::KeyPress) {
         auto *widget = qobject_cast<QWidget *>(watched);
-        if (widget != nullptr && widget->window() == this) {
+        auto *lineEdit = qobject_cast<QLineEdit *>(watched);
+        const bool isOtherLineEdit = (lineEdit != nullptr && lineEdit != dialpad_->numberEdit());
+        if (!isOtherLineEdit && widget != nullptr && widget->window() == this) {
             const int activeId = callService_.activeConfirmedCallId();
             auto *keyEvent = static_cast<QKeyEvent *>(event);
             const Qt::KeyboardModifiers disallowed =
@@ -247,55 +177,32 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
     return QMainWindow::eventFilter(watched, event);
 }
 
-void MainWindow::refreshAccountsCombo() {
-    updatingCombo_ = true;
-    accountCombo_->clear();
-
-    const QList<AccountConfig> list = accountService_.accounts();
-    const QString defId = accountService_.defaultAccountId();
-    if (list.isEmpty()) {
-        accountCombo_->addItem(tr("No account configured"), QString{});
-        accountCombo_->setEnabled(false);
-    } else {
-        accountCombo_->setEnabled(true);
-        int selectedIdx = 0;
-        for (qsizetype i = 0; i < list.size(); ++i) {
-            accountCombo_->addItem(formatAccountShortLabel(list[i]), list[i].id);
-            if (list[i].id == defId) {
-                selectedIdx = static_cast<int>(i);
-            }
-        }
-        accountCombo_->setCurrentIndex(selectedIdx);
-    }
-    updatingCombo_ = false;
-    refreshStatusIndicator();
-}
-
-void MainWindow::refreshStatusIndicator() {
-    const QString defId = accountService_.defaultAccountId();
-    const bool hasAcc = !defId.isEmpty();
-    const RegistrationInfo reg =
-        hasAcc ? accountService_.registrationInfo(defId) : RegistrationInfo{};
-
-    statusDot_->setPixmap(Icons::statusDotPixmap(reg.state, 12));
-    const QString tip = formatRegistrationTooltip(reg, hasAcc);
-    statusDot_->setToolTip(tip);
-    accountCombo_->setToolTip(tip);
-}
-
-void MainWindow::refreshDndState(bool enabled) {
-    dndBadge_->setVisible(enabled);
-    const QSignalBlocker blocker(dndAction_);
-    dndAction_->setChecked(enabled);
-}
-
-void MainWindow::onAccountComboChanged(int index) {
-    if (updatingCombo_ || index < 0) {
+void MainWindow::refreshHistoryTabBadge() {
+    if (historyTabIndex_ < 0) {
         return;
     }
-    const QString id = accountCombo_->itemData(index).toString();
-    if (!id.isEmpty()) {
-        accountService_.setDefaultAccountId(id);
+    if (tabs_->currentIndex() == historyTabIndex_ && isVisible() &&
+        historyService_.unseenMissedCount() > 0) {
+        historyService_.markAllSeen();
+        return;
+    }
+    const int missed = historyService_.unseenMissedCount();
+    tabs_->setTabText(historyTabIndex_,
+                      missed > 0 ? tr("History (%1)").arg(missed) : tr("History"));
+}
+
+void MainWindow::refreshMessagesTabBadge() {
+    if (messagesTabIndex_ < 0) {
+        return;
+    }
+    const int unread = messageService_.totalUnreadCount();
+    tabs_->setTabText(messagesTabIndex_,
+                      unread > 0 ? tr("Messages (%1)").arg(unread) : tr("Messages"));
+}
+
+void MainWindow::onTabChanged(int index) {
+    if (index == historyTabIndex_) {
+        historyService_.markAllSeen();
     }
 }
 
@@ -305,6 +212,11 @@ void MainWindow::onDialRequested(const QString &text) {
     if (err.isEmpty()) {
         dialpad_->clearText();
     }
+}
+
+void MainWindow::onDialOnAccountRequested(const QString &target, const QString &accountId) {
+    errorLabel_->setVisible(false);
+    (void)callService_.dialOnAccount(accountId, target);
 }
 
 void MainWindow::showErrorBanner(const QString &message) {

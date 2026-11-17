@@ -6,6 +6,7 @@
 #include "app/secret_store.h"
 #include "app/settings_store.h"
 #include "core/account_config.h"
+#include "core/presence_info.h"
 #include "core/registration_info.h"
 #include "core/sip_engine.h"
 
@@ -41,14 +42,19 @@ public:
     RegistrationInfo registrationInfo(const QString &accountId) const;
     void handleRegistrationChanged(const RegistrationInfo &info);
 
+    PresenceState ownPresence() const;
+    bool setOwnPresence(PresenceState state, const QString &note = {});
+
 signals:
     void accountsChanged();
     void defaultAccountChanged(const QString &accountId);
     void registrationChanged(const tincan::RegistrationInfo &info);
+    void ownPresenceChanged(tincan::PresenceState state);
 
 private:
     qsizetype findAccountIndex(const QString &accountId) const;
     void normalizeDefaultAccountId();
+    void applyOwnPresenceToAccount(const QString &accountId);
 
     ISipEngine &engine_;
     SettingsStore &settings_;
@@ -57,6 +63,8 @@ private:
     QString defaultAccountId_;
     QHash<QString, RegistrationInfo> registrations_;
     QHash<QString, quint64> accountRevisions_;
+    PresenceState ownPresence_ = PresenceState::Online;
+    QString ownPresenceNote_;
 };
 
 } // namespace tincan

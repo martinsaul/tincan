@@ -4,6 +4,7 @@
 #pragma once
 
 #include "app/call_service.h"
+#include "app/contact_service.h"
 
 #include <QMap>
 #include <QWidget>
@@ -19,13 +20,16 @@ class CallPanel : public QWidget {
     Q_OBJECT
 
 public:
-    explicit CallPanel(CallService &callService, QWidget *parent = nullptr);
+    explicit CallPanel(CallService &callService, ContactService *contactService = nullptr,
+                       QWidget *parent = nullptr);
 
     QList<CallCard *> cards() const;
     CallCard *cardForCall(int callId) const;
     QPushButton *mergeButton() const;
 
 private:
+    CallInfo enrichWithContactName(CallInfo info) const;
+    void refreshContactNames();
     void onCallAdded(const CallInfo &info);
     void onCallUpdated(const CallInfo &info);
     void onCallRemoved(const CallInfo &info);
@@ -36,6 +40,7 @@ private:
     void syncVisibility();
 
     CallService &callService_;
+    ContactService *contactService_ = nullptr;
     QPushButton *mergeButton_ = nullptr;
     QVBoxLayout *cardsLayout_ = nullptr;
     QMap<int, CallCard *> cards_;

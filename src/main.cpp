@@ -11,6 +11,7 @@
 #include <QCommandLineOption>
 #include <QCommandLineParser>
 #include <QCoreApplication>
+#include <QTemporaryDir>
 
 #include <iostream>
 
@@ -87,7 +88,14 @@ int main(int argc, char *argv[]) {
     QObject::connect(&signalWatcher, &tincan::PosixSignalWatcher::terminationRequested, &app,
                      &QCoreApplication::quit);
 
-    tincan::Composition composition;
+    QTemporaryDir screenshotTempDir;
+    const QString settingsPath = cli.screenshotDir.isEmpty()
+                                     ? QString{}
+                                     : screenshotTempDir.filePath(QStringLiteral("tincan.ini"));
+    const QString dbPath =
+        cli.screenshotDir.isEmpty() ? QString{} : QStringLiteral(":memory:");
+
+    tincan::Composition composition(settingsPath, dbPath);
     QString engineError;
     if (!composition.start(cli.nullAudio, &engineError)) {
         std::cerr << "Failed to start SIP engine: " << engineError.toStdString() << '\n';

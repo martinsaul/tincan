@@ -6,6 +6,13 @@
 #include "app/account_service.h"
 #include "app/audio_service.h"
 #include "app/call_service.h"
+#include "app/contact_repository.h"
+#include "app/contact_service.h"
+#include "app/database.h"
+#include "app/history_repository.h"
+#include "app/history_service.h"
+#include "app/message_repository.h"
+#include "app/message_service.h"
 #include "app/secret_store.h"
 #include "app/settings_store.h"
 #include "app/sip_event_router.h"
@@ -16,11 +23,13 @@
 
 #include <QString>
 
+class QDir;
+
 namespace tincan {
 
 class Composition {
 public:
-    explicit Composition(const QString &settingsPath = {});
+    explicit Composition(const QString &settingsPath = {}, const QString &databasePath = {});
     ~Composition();
 
     Composition(const Composition &) = delete;
@@ -34,13 +43,23 @@ public:
     bool saveScreenshots(const QString &directoryPath);
 
 private:
+    void populateScreenshotData();
+    bool saveSettingsScreenshots(const QDir &dir);
+
     SipEventRouter eventRouter_;
     sip::PjsipEngine engine_;
     SettingsStore settings_;
     KeychainSecretStore secrets_;
+    Database database_;
+    ContactRepository contactRepository_;
+    HistoryRepository historyRepository_;
+    MessageRepository messageRepository_;
     AccountService accountService_;
     CallService callService_;
     AudioService audioService_;
+    ContactService contactService_;
+    HistoryService historyService_;
+    MessageService messageService_;
     ui::MainWindow mainWindow_;
     ui::IncomingCallPopup incomingPopup_;
     ui::TrayIcon trayIcon_;

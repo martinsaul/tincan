@@ -13,6 +13,7 @@
 
 namespace tincan::sip {
 
+class BuddyRegistry;
 class CallController;
 class EventMarshaller;
 class SipAccount;
@@ -62,6 +63,13 @@ public:
     void startTone(Tone tone, const QString &customWav = {}) override;
     void stopTone() override;
 
+    bool subscribePresence(const QString &accountId, const QString &uri) override;
+    void unsubscribePresence(const QString &uri) override;
+    bool setOwnPresence(const QString &accountId, PresenceState state,
+                        const QString &note = {}) override;
+    bool sendMessage(const QString &accountId, const QString &uri, const QString &body,
+                     quint64 token) override;
+
 private:
     QString resolveUriForAccount(const QString &accountId, const QString &uri) const;
 
@@ -70,6 +78,7 @@ private:
     std::unique_ptr<SipEndpoint> endpoint_;
     std::unique_ptr<TonePlayer> tonePlayer_;
     std::unique_ptr<CallController> callController_;
+    std::unique_ptr<BuddyRegistry> buddyRegistry_;
     std::map<QString, std::unique_ptr<SipAccount>> accounts_;
 };
 

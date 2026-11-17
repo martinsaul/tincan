@@ -11,6 +11,7 @@
 #include "core/sip_engine.h"
 #include "core/sip_events.h"
 
+#include <QHash>
 #include <QList>
 #include <QObject>
 #include <QSet>
@@ -30,6 +31,7 @@ public:
     int activeConfirmedCallId() const;
 
     QString dial(const QString &text);
+    QString dialOnAccount(const QString &accountId, const QString &text);
     bool answer(int callId);
     bool reject(int callId);
     bool redirect(int callId, const QString &target);
@@ -63,6 +65,7 @@ signals:
     void callAdded(const tincan::CallInfo &info);
     void callUpdated(const tincan::CallInfo &info);
     void callRemoved(const tincan::CallInfo &info);
+    void callEnded(const tincan::CallInfo &info, bool missed);
     void incomingCall(const tincan::CallInfo &info);
     void missedCall(const tincan::CallInfo &info);
     void activeCallChanged(int callId);
@@ -72,6 +75,7 @@ signals:
 
 private:
     qsizetype findCallIndex(int callId) const;
+    void handleDisconnected(const CallInfo &info);
     void upsertCall(const CallInfo &info);
     void markLocallyHandled(int callId);
     bool hasOtherActiveCall(int callId) const;

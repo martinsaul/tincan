@@ -48,35 +48,27 @@ void AccountService::load() {
                                   self->accounts_[idx].password = password;
                                   self->engine_.removeAccount(id);
                                   QString err;
-                                  (void)self->engine_.addAccount(self->accounts_[idx], &err);
+                                  if (self->engine_.addAccount(self->accounts_[idx], &err)) {
+                                      self->applyOwnPresenceToAccount(id);
+                                  }
                               });
     }
 
     emit accountsChanged();
 }
 
-QList<AccountConfig> AccountService::accounts() const {
-    return accounts_;
-}
+QList<AccountConfig> AccountService::accounts() const { return accounts_; }
 
 std::optional<AccountConfig> AccountService::account(const QString &accountId) const {
     const qsizetype idx = findAccountIndex(accountId);
-    if (idx < 0) {
-        return std::nullopt;
-    }
-    return accounts_[idx];
+    return idx < 0 ? std::nullopt : std::optional<AccountConfig>{accounts_[idx]};
 }
 
 std::optional<AccountConfig> AccountService::defaultAccount() const {
-    if (defaultAccountId_.isEmpty()) {
-        return std::nullopt;
-    }
-    return account(defaultAccountId_);
+    return defaultAccountId_.isEmpty() ? std::nullopt : account(defaultAccountId_);
 }
 
-QString AccountService::defaultAccountId() const {
-    return defaultAccountId_;
-}
+QString AccountService::defaultAccountId() const { return defaultAccountId_; }
 
 void AccountService::setDefaultAccountId(const QString &accountId) {
     if (accountId == defaultAccountId_ || findAccountIndex(accountId) < 0) {
@@ -84,6 +76,7 @@ void AccountService::setDefaultAccountId(const QString &accountId) {
     }
     defaultAccountId_ = accountId;
     settings_.setDefaultAccountId(defaultAccountId_);
+    applyOwnPresenceToAccount(defaultAccountId_);
     emit defaultAccountChanged(defaultAccountId_);
     emit accountsChanged();
 }
@@ -114,6 +107,9 @@ bool AccountService::addAccount(AccountConfig config, QString *error) {
     settings_.setAccounts(accounts_);
     secrets_.writePassword(config.id, config.password);
     const bool ok = engine_.addAccount(config, error);
+    if (ok) {
+        applyOwnPresenceToAccount(config.id);
+    }
 
     emit accountsChanged();
     if (becameDefault) {
@@ -134,8 +130,6 @@ bool AccountService::updateAccount(const AccountConfig &config, QString *error) 
     }
 
     ++accountRevisions_[config.id];
-    // An empty password field keeps the stored secret: the dialog may have
-    // been accepted before the keychain read finished (or it failed).
     const QString keptPassword = accounts_[idx].password;
     accounts_[idx] = config;
     if (config.password.isEmpty()) {
@@ -151,6 +145,9 @@ bool AccountService::updateAccount(const AccountConfig &config, QString *error) 
     emit registrationChanged(resetReg);
 
     const bool ok = engine_.addAccount(accounts_[idx], error);
+    if (ok) {
+        applyOwnPresenceToAccount(config.id);
+    }
     emit accountsChanged();
     return ok;
 }
@@ -184,7 +181,23 @@ RegistrationInfo AccountService::registrationInfo(const QString &accountId) cons
 
 void AccountService::handleRegistrationChanged(const RegistrationInfo &info) {
     registrations_.insert(info.accountId, info);
+    if (info.state == RegState::Registered) {
+        applyOwnPresenceToAccount(info.accountId);
+    }
     emit registrationChanged(info);
+}
+
+PresenceState AccountService::ownPresence() const { return ownPresence_; }
+
+bool AccountService::setOwnPresence(PresenceState state, const QString &note) {
+    ownPresence_ = state;
+    ownPresenceNote_ = note;
+    bool ok = false;
+    if (!defaultAccountId_.isEmpty()) {
+        ok = engine_.setOwnPresence(defaultAccountId_, state, note);
+    }
+    emit ownPresenceChanged(state);
+    return ok;
 }
 
 qsizetype AccountService::findAccountIndex(const QString &accountId) const {
@@ -202,6 +215,13 @@ void AccountService::normalizeDefaultAccountId() {
     }
     defaultAccountId_ = accounts_.isEmpty() ? QString{} : accounts_.first().id;
     settings_.setDefaultAccountId(defaultAccountId_);
+}
+
+void AccountService::applyOwnPresenceToAccount(const QString &accountId) {
+    const auto acc = account(accountId);
+    if (acc.has_value() && acc->publishPresence && accountId == defaultAccountId_) {
+        (void)engine_.setOwnPresence(accountId, ownPresence_, ownPresenceNote_);
+    }
 }
 
 } // namespace tincan

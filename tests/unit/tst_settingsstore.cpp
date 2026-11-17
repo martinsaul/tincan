@@ -28,6 +28,7 @@ tincan::AccountConfig makeFullSampleAccount() {
     acc.publicAddress = QStringLiteral("203.0.113.10");
     acc.dialPrefix = QStringLiteral("9");
     acc.voicemailNumber = QStringLiteral("*97");
+    acc.publishPresence = true;
     return acc;
 }
 
@@ -83,6 +84,8 @@ private slots:
         QCOMPARE(loaded[0].publicAddress, acc1.publicAddress);
         QCOMPARE(loaded[0].dialPrefix, acc1.dialPrefix);
         QCOMPARE(loaded[0].voicemailNumber, acc1.voicemailNumber);
+        QCOMPARE(loaded[0].publishPresence, true);
+        QCOMPARE(loaded[1].publishPresence, false);
         QVERIFY(loaded[1].password.isEmpty());
         QCOMPARE(loaded[1].transport, tincan::Transport::Tcp);
         QCOMPARE(loaded[1].srtp, tincan::SrtpMode::Optional);

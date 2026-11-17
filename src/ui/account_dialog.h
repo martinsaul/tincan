@@ -49,6 +49,7 @@ private:
     QLineEdit *publicAddressEdit_ = nullptr;
     QLineEdit *dialPrefixEdit_ = nullptr;
     QLineEdit *voicemailEdit_ = nullptr;
+    QCheckBox *publishPresenceCheck_ = nullptr;
     QLabel *validationLabel_ = nullptr;
 };
 

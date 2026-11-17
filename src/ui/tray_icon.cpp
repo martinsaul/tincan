@@ -5,6 +5,7 @@
 
 #include "ui/icons.h"
 #include "ui/main_window.h"
+#include "ui/messages_view.h"
 
 #include <QAction>
 #include <QSignalBlocker>
@@ -12,9 +13,10 @@
 namespace tincan::ui {
 
 TrayIcon::TrayIcon(AccountService &accountService, CallService &callService, MainWindow &mainWindow,
-                   QObject *parent)
+                   MessageService *messageService, ContactService *contactService, QObject *parent)
     : QObject(parent), accountService_(accountService), callService_(callService),
-      mainWindow_(mainWindow), menu_(std::make_unique<QMenu>()) {
+      mainWindow_(mainWindow), messageService_(messageService), contactService_(contactService),
+      menu_(std::make_unique<QMenu>()) {
     QAction *showHideAction = menu_->addAction(tr("Show / Hide"));
     dndAction_ = menu_->addAction(tr("Do Not Disturb"));
     dndAction_->setCheckable(true);
@@ -39,6 +41,10 @@ TrayIcon::TrayIcon(AccountService &accountService, CallService &callService, Mai
             &TrayIcon::refreshRegistrationState);
     connect(&callService_, &CallService::dndChanged, this, &TrayIcon::refreshDndAction);
     connect(&callService_, &CallService::missedCall, this, &TrayIcon::onMissedCall);
+    if (messageService_ != nullptr) {
+        connect(messageService_, &MessageService::incomingMessageReceived, this,
+                &TrayIcon::onIncomingMessage);
+    }
 
     refreshRegistrationState();
 }
@@ -50,8 +56,9 @@ void TrayIcon::show() {
 }
 
 QSystemTrayIcon &TrayIcon::systemTrayIcon() { return tray_; }
-
 QAction *TrayIcon::dndAction() const { return dndAction_; }
+const QString &TrayIcon::lastNotificationTitle() const { return lastNotificationTitle_; }
+const QString &TrayIcon::lastNotificationBody() const { return lastNotificationBody_; }
 
 void TrayIcon::refreshRegistrationState() {
     const QString defId = accountService_.defaultAccountId();
@@ -106,9 +113,38 @@ void TrayIcon::onActivated(QSystemTrayIcon::ActivationReason reason) {
 }
 
 void TrayIcon::onMissedCall(const CallInfo &info) {
-    const QString caller =
-        info.remoteDisplayName.trimmed().isEmpty() ? info.remoteUri : info.remoteDisplayName;
-    tray_.showMessage(tr("Missed call"), tr("Missed call from %1").arg(caller), Icons::appIcon());
+    QString caller = info.remoteDisplayName.trimmed();
+    if (contactService_ != nullptr) {
+        const QString resolved = contactService_->resolveDisplayName(info.remoteUri);
+        if (!resolved.isEmpty()) {
+            caller = resolved;
+        }
+    }
+    if (caller.isEmpty()) {
+        caller = info.remoteUri;
+    }
+    postNotification(tr("Missed call"), tr("Missed call from %1").arg(caller));
+}
+
+void TrayIcon::onIncomingMessage(const ChatMessage &message, const QString &fromName) {
+    if (mainWindow_.messagesView() != nullptr &&
+        mainWindow_.messagesView()->isPeerChatVisible(message.peerUri)) {
+        return;
+    }
+    QString sender;
+    if (contactService_ != nullptr) {
+        sender = contactService_->resolveDisplayName(message.peerUri);
+    }
+    if (sender.isEmpty()) {
+        sender = fromName.trimmed().isEmpty() ? message.peerUri : fromName.trimmed();
+    }
+    postNotification(tr("New message from %1").arg(sender), message.body);
+}
+
+void TrayIcon::postNotification(const QString &title, const QString &body) {
+    lastNotificationTitle_ = title;
+    lastNotificationBody_ = body;
+    tray_.showMessage(title, body, Icons::appIcon());
 }
 
 } // namespace tincan::ui

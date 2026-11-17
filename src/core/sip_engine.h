@@ -9,6 +9,7 @@
 #include "core/codec_info.h"
 #include "core/dtmf_method.h"
 #include "core/engine_config.h"
+#include "core/presence_info.h"
 #include "core/tone.h"
 
 #include <QList>
@@ -51,6 +52,13 @@ public:
 
     virtual void startTone(Tone tone, const QString &customWav = {}) = 0;
     virtual void stopTone() = 0;
+
+    virtual bool subscribePresence(const QString &accountId, const QString &uri) = 0;
+    virtual void unsubscribePresence(const QString &uri) = 0;
+    virtual bool setOwnPresence(const QString &accountId, PresenceState state,
+                                const QString &note = {}) = 0;
+    virtual bool sendMessage(const QString &accountId, const QString &uri, const QString &body,
+                             quint64 token) = 0;
 };
 
 } // namespace tincan

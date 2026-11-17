@@ -4,6 +4,7 @@
 #include "ui/icons.h"
 
 #include <QPainter>
+#include <QPolygonF>
 #include <QSvgRenderer>
 
 static void initTincanUiResources() {
@@ -19,6 +20,17 @@ QIcon themedOrFallback(const QString &themeName, const QString &qrcPath) {
     const QIcon fallback(qrcPath);
     const QIcon themed = QIcon::fromTheme(themeName, fallback);
     return themed.isNull() ? fallback : themed;
+}
+
+QPixmap drawCirclePixmap(const QColor &fill, int diameter) {
+    QPixmap pix(diameter, diameter);
+    pix.fill(Qt::transparent);
+    QPainter painter(&pix);
+    painter.setRenderHint(QPainter::Antialiasing, true);
+    painter.setPen(QPen(fill.darker(130), 1.0));
+    painter.setBrush(fill);
+    painter.drawEllipse(QRectF(1.0, 1.0, diameter - 2.0, diameter - 2.0));
+    return pix;
 }
 
 } // namespace
@@ -78,15 +90,7 @@ QColor regStateColor(RegState state) {
 }
 
 QPixmap statusDotPixmap(RegState state, int diameter) {
-    QPixmap pix(diameter, diameter);
-    pix.fill(Qt::transparent);
-    QPainter painter(&pix);
-    painter.setRenderHint(QPainter::Antialiasing, true);
-    const QColor fill = regStateColor(state);
-    painter.setPen(QPen(fill.darker(130), 1.0));
-    painter.setBrush(fill);
-    painter.drawEllipse(QRectF(1.0, 1.0, diameter - 2.0, diameter - 2.0));
-    return pix;
+    return drawCirclePixmap(regStateColor(state), diameter);
 }
 
 QIcon trayIconForState(RegState state) {
@@ -102,6 +106,58 @@ QIcon trayIconForState(RegState state) {
     painter.setPen(QPen(Qt::white, 3.0));
     painter.setBrush(regStateColor(state));
     painter.drawEllipse(QRectF(42.0, 42.0, 18.0, 18.0));
+    return QIcon(pix);
+}
+
+QColor presenceStateColor(PresenceState state) {
+    switch (state) {
+    case PresenceState::Unknown:
+        return QColor(148, 163, 184);
+    case PresenceState::Offline:
+        return QColor(100, 116, 139);
+    case PresenceState::Online:
+        return QColor(22, 163, 74);
+    case PresenceState::Away:
+        return QColor(217, 119, 6);
+    case PresenceState::Busy:
+        return QColor(220, 38, 38);
+    case PresenceState::Ringing:
+        return QColor(249, 115, 22);
+    case PresenceState::OnThePhone:
+        return QColor(185, 28, 28);
+    }
+    return QColor(148, 163, 184);
+}
+
+QPixmap presenceDotPixmap(PresenceState state, int diameter) {
+    return drawCirclePixmap(presenceStateColor(state), diameter);
+}
+
+QIcon presenceDotIcon(PresenceState state, int diameter) {
+    return QIcon(presenceDotPixmap(state, diameter));
+}
+
+QIcon historyDirectionIcon(CallDirection direction, bool missed) {
+    QPixmap pix(16, 16);
+    pix.fill(Qt::transparent);
+    QPainter painter(&pix);
+    painter.setRenderHint(QPainter::Antialiasing, true);
+
+    const QColor color = missed ? QColor(220, 38, 38)
+                                : (direction == CallDirection::Incoming ? QColor(22, 163, 74)
+                                                                        : QColor(37, 99, 235));
+    QPen pen(color, 2.0, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin);
+    painter.setPen(pen);
+
+    if (direction == CallDirection::Outgoing) {
+        painter.drawLine(QPointF(4.0, 12.0), QPointF(12.0, 4.0));
+        painter.drawLine(QPointF(7.0, 4.0), QPointF(12.0, 4.0));
+        painter.drawLine(QPointF(12.0, 4.0), QPointF(12.0, 9.0));
+    } else {
+        painter.drawLine(QPointF(12.0, 4.0), QPointF(4.0, 12.0));
+        painter.drawLine(QPointF(4.0, 7.0), QPointF(4.0, 12.0));
+        painter.drawLine(QPointF(4.0, 12.0), QPointF(9.0, 12.0));
+    }
     return QIcon(pix);
 }
 

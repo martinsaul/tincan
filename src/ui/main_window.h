@@ -6,6 +6,9 @@
 #include "app/account_service.h"
 #include "app/audio_service.h"
 #include "app/call_service.h"
+#include "app/contact_service.h"
+#include "app/history_service.h"
+#include "app/message_service.h"
 #include "app/secret_store.h"
 #include "app/settings_store.h"
 
@@ -17,22 +20,32 @@ class QComboBox;
 class QEvent;
 class QLabel;
 class QTabWidget;
-class QToolButton;
 
 namespace tincan::ui {
 
 class CallPanel;
+class ContactsView;
 class DialpadWidget;
+class HeaderBar;
+class HistoryView;
+class MessagesView;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
 
 public:
     MainWindow(AccountService &accountService, CallService &callService, AudioService &audioService,
-               SettingsStore &settingsStore, ISecretStore &secretStore, QWidget *parent = nullptr);
+               ContactService &contactService, HistoryService &historyService,
+               MessageService &messageService, SettingsStore &settingsStore,
+               ISecretStore &secretStore, QWidget *parent = nullptr);
 
     DialpadWidget *dialpad() const;
     CallPanel *callPanel() const;
+    ContactsView *contactsView() const;
+    HistoryView *historyView() const;
+    MessagesView *messagesView() const;
+    QTabWidget *tabs() const;
+    QComboBox *presenceCombo() const;
     QLabel *dndBadge() const;
     QAction *dndAction() const;
 
@@ -48,34 +61,36 @@ protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
-    QWidget *buildHeaderBar();
-    QMenu *buildHeaderMenu(QWidget *parent);
-    QWidget *createComingSoonPlaceholder() const;
-    void refreshAccountsCombo();
-    void refreshStatusIndicator();
-    void refreshDndState(bool enabled);
-    void onAccountComboChanged(int index);
+    void setupTabs(QWidget *central);
+    void connectSignals();
+    void refreshHistoryTabBadge();
+    void refreshMessagesTabBadge();
+    void onTabChanged(int index);
     void onDialRequested(const QString &text);
+    void onDialOnAccountRequested(const QString &target, const QString &accountId);
     void showErrorBanner(const QString &message);
 
     AccountService &accountService_;
     CallService &callService_;
     AudioService &audioService_;
+    ContactService &contactService_;
+    HistoryService &historyService_;
+    MessageService &messageService_;
     SettingsStore &settingsStore_;
     ISecretStore &secretStore_;
 
     bool quitting_ = false;
-    bool updatingCombo_ = false;
+    int historyTabIndex_ = -1;
+    int messagesTabIndex_ = -1;
 
-    QLabel *statusDot_ = nullptr;
-    QComboBox *accountCombo_ = nullptr;
-    QLabel *dndBadge_ = nullptr;
-    QAction *dndAction_ = nullptr;
-    QToolButton *menuButton_ = nullptr;
+    HeaderBar *headerBar_ = nullptr;
     QLabel *errorLabel_ = nullptr;
     CallPanel *callPanel_ = nullptr;
     QTabWidget *tabs_ = nullptr;
     DialpadWidget *dialpad_ = nullptr;
+    ContactsView *contactsView_ = nullptr;
+    HistoryView *historyView_ = nullptr;
+    MessagesView *messagesView_ = nullptr;
 };
 
 } // namespace tincan::ui

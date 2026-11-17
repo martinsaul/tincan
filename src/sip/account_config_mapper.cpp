@@ -75,6 +75,8 @@ pj::AccountConfig AccountConfigMapper::map(const AccountConfig &config) {
     mapRegistration(config, pjCfg);
     mapSipAuthAndProxy(config, pjCfg);
 
+    pjCfg.presConfig.publishEnabled = config.publishPresence;
+
     pjCfg.natConfig.iceEnabled = config.ice;
     const bool hasStun = !config.stunServer.trimmed().isEmpty();
     pjCfg.natConfig.sipStunUse = hasStun ? PJSUA_STUN_USE_DEFAULT : PJSUA_STUN_USE_DISABLED;

@@ -4,8 +4,16 @@
 #include "app/account_service.h"
 #include "app/audio_service.h"
 #include "app/call_service.h"
+#include "app/contact_repository.h"
+#include "app/contact_service.h"
+#include "app/database.h"
+#include "app/history_repository.h"
+#include "app/history_service.h"
+#include "app/message_repository.h"
+#include "app/message_service.h"
 #include "app/secret_store.h"
 #include "app/settings_store.h"
+#include "app/sip_event_router.h"
 #include "fake_sip_engine.h"
 #include "ui/account_dialog.h"
 #include "ui/accounts_page.h"
@@ -40,6 +48,40 @@ tincan::AccountConfig sampleOfficeAccount() {
     return acc;
 }
 
+tincan::Database &openMemoryDb(tincan::Database &db) {
+    (void)db.open();
+    return db;
+}
+
+struct SmokeRig {
+    QTemporaryDir tempDir;
+    tincan::SettingsStore settings{tempDir.filePath(QStringLiteral("tincan.ini"))};
+    tincan::MemorySecretStore secrets;
+    tincan::SipEventRouter router;
+    tincan::test::FakeSipEngine engine{&router};
+    tincan::Database db{QStringLiteral(":memory:")};
+    tincan::ContactRepository contactRepo{openMemoryDb(db)};
+    tincan::HistoryRepository historyRepo{db};
+    tincan::MessageRepository messageRepo{db};
+    tincan::AccountService accounts{engine, settings, secrets};
+    tincan::CallService calls{engine, accounts, settings};
+    tincan::AudioService audio{engine, settings};
+    tincan::ContactService contacts{engine, accounts, contactRepo};
+    tincan::HistoryService history{calls, historyRepo, &contacts};
+    tincan::MessageService messages{engine, accounts, messageRepo};
+
+    SmokeRig() {
+        router.addListener(&calls);
+        router.addListener(&contacts);
+        router.addListener(&messages);
+    }
+
+    std::unique_ptr<tincan::ui::MainWindow> makeWindow() {
+        return std::make_unique<tincan::ui::MainWindow>(accounts, calls, audio, contacts, history,
+                                                        messages, settings, secrets);
+    }
+};
+
 } // namespace
 
 class TestUiSmoke : public QObject {
@@ -47,72 +89,58 @@ class TestUiSmoke : public QObject {
 
 private slots:
     void typingDigitsAndClickingCallDialsNormalizedUri() {
-        QTemporaryDir tempDir;
-        QVERIFY(tempDir.isValid());
-        tincan::SettingsStore settings(tempDir.filePath(QStringLiteral("tincan.ini")));
-        tincan::MemorySecretStore secrets;
-        tincan::test::FakeSipEngine engine;
-        tincan::AccountService accounts(engine, settings, secrets);
-        tincan::CallService calls(engine, accounts, settings);
-        tincan::AudioService audio(engine, settings);
-        engine.setEvents(&calls);
-        QVERIFY(accounts.addAccount(sampleOfficeAccount()));
+        SmokeRig rig;
+        QVERIFY(rig.tempDir.isValid());
+        QVERIFY(rig.accounts.addAccount(sampleOfficeAccount()));
 
-        tincan::ui::MainWindow window(accounts, calls, audio, settings, secrets);
-        window.show();
-        QVERIFY(QTest::qWaitForWindowExposed(&window));
+        auto window = rig.makeWindow();
+        window->show();
+        QVERIFY(QTest::qWaitForWindowExposed(window.get()));
 
-        QLineEdit *edit = window.dialpad()->numberEdit();
+        QLineEdit *edit = window->dialpad()->numberEdit();
         edit->setFocus();
         QTest::keyClicks(edit, QStringLiteral("123"));
         QCOMPARE(edit->text(), QStringLiteral("123"));
 
-        QTest::mouseClick(window.dialpad()->callButton(), Qt::LeftButton);
-        QCOMPARE(engine.dialedCalls.size(), 1);
-        QCOMPARE(engine.dialedCalls.first().accountId, QStringLiteral("acc-1"));
-        QCOMPARE(engine.dialedCalls.first().uri, QStringLiteral("sip:123@pbx.example.net"));
+        QTest::mouseClick(window->dialpad()->callButton(), Qt::LeftButton);
+        QCOMPARE(rig.engine.dialedCalls.size(), 1);
+        QCOMPARE(rig.engine.dialedCalls.first().accountId, QStringLiteral("acc-1"));
+        QCOMPARE(rig.engine.dialedCalls.first().uri, QStringLiteral("sip:123@pbx.example.net"));
     }
 
     void incomingCallShowsCallCardWithAnswerAndAnswersOnEngine() {
-        QTemporaryDir tempDir;
-        QVERIFY(tempDir.isValid());
-        tincan::SettingsStore settings(tempDir.filePath(QStringLiteral("tincan.ini")));
-        tincan::MemorySecretStore secrets;
-        tincan::test::FakeSipEngine engine;
-        tincan::AccountService accounts(engine, settings, secrets);
-        tincan::CallService calls(engine, accounts, settings);
-        tincan::AudioService audio(engine, settings);
-        engine.setEvents(&calls);
-        QVERIFY(accounts.addAccount(sampleOfficeAccount()));
+        SmokeRig rig;
+        QVERIFY(rig.tempDir.isValid());
+        QVERIFY(rig.accounts.addAccount(sampleOfficeAccount()));
 
-        tincan::ui::MainWindow window(accounts, calls, audio, settings, secrets);
-        tincan::ui::IncomingCallPopup popup(calls);
-        window.show();
-        QVERIFY(QTest::qWaitForWindowExposed(&window));
-        QVERIFY(!window.callPanel()->isVisible());
+        auto window = rig.makeWindow();
+        tincan::ui::IncomingCallPopup popup(rig.calls, &rig.contacts);
+        window->show();
+        QVERIFY(QTest::qWaitForWindowExposed(window.get()));
+        QVERIFY(!window->callPanel()->isVisible());
 
-        const int callId = engine.injectIncomingCall(
+        const int callId = rig.engine.injectIncomingCall(
             QStringLiteral("acc-1"), QStringLiteral("sip:555@pbx.example.net"),
             QStringLiteral("Caller Five"));
         QCoreApplication::processEvents();
 
-        QVERIFY(window.callPanel()->isVisible());
+        QVERIFY(window->callPanel()->isVisible());
         QVERIFY(popup.isVisible());
-        tincan::ui::CallCard *card = window.callPanel()->cardForCall(callId);
+        tincan::ui::CallCard *card = window->callPanel()->cardForCall(callId);
         QVERIFY(card != nullptr);
         QVERIFY(card->answerButton()->isVisible());
 
         QTest::mouseClick(card->answerButton(), Qt::LeftButton);
-        QCOMPARE(engine.answeredCallIds, QList<int>{callId});
+        QCOMPARE(rig.engine.answeredCallIds, QList<int>{callId});
 
-        engine.injectCallState(callId, tincan::CallState::Confirmed, 200);
+        rig.engine.injectCallState(callId, tincan::CallState::Confirmed, 200);
         QCoreApplication::processEvents();
         QVERIFY(!card->answerButton()->isVisible());
         QVERIFY(!popup.isVisible());
 
-        engine.injectCallState(callId, tincan::CallState::Disconnected, 200);
+        rig.engine.injectCallState(callId, tincan::CallState::Disconnected, 200);
         QCoreApplication::processEvents();
-        QVERIFY(!window.callPanel()->isVisible());
+        QVERIFY(!window->callPanel()->isVisible());
     }
 
     void settingsDialogAddsAccountViaAccountDialogIntoSettingsStore() {
@@ -161,27 +189,20 @@ private slots:
     }
 
     void inCallControlsKeyboardDtmfAndBlindTransferWork() {
-        QTemporaryDir tempDir;
-        QVERIFY(tempDir.isValid());
-        tincan::SettingsStore settings(tempDir.filePath(QStringLiteral("tincan.ini")));
-        tincan::MemorySecretStore secrets;
-        tincan::test::FakeSipEngine engine;
-        tincan::AccountService accounts(engine, settings, secrets);
-        tincan::CallService calls(engine, accounts, settings);
-        tincan::AudioService audio(engine, settings);
-        engine.setEvents(&calls);
-        QVERIFY(accounts.addAccount(sampleOfficeAccount()));
+        SmokeRig rig;
+        QVERIFY(rig.tempDir.isValid());
+        QVERIFY(rig.accounts.addAccount(sampleOfficeAccount()));
 
-        tincan::ui::MainWindow window(accounts, calls, audio, settings, secrets);
-        window.show();
-        QVERIFY(QTest::qWaitForWindowExposed(&window));
+        auto window = rig.makeWindow();
+        window->show();
+        QVERIFY(QTest::qWaitForWindowExposed(window.get()));
 
-        QVERIFY(calls.dial(QStringLiteral("201")).isEmpty());
-        const int callId = engine.dialedCalls.first().callId;
-        engine.injectCallState(callId, tincan::CallState::Confirmed, 200);
+        QVERIFY(rig.calls.dial(QStringLiteral("201")).isEmpty());
+        const int callId = rig.engine.dialedCalls.first().callId;
+        rig.engine.injectCallState(callId, tincan::CallState::Confirmed, 200);
         QCoreApplication::processEvents();
 
-        tincan::ui::CallCard *card = window.callPanel()->cardForCall(callId);
+        tincan::ui::CallCard *card = window->callPanel()->cardForCall(callId);
         QVERIFY(card != nullptr);
         QTest::mouseClick(card->holdButton(), Qt::LeftButton);
         QVERIFY(card->callInfo().localHold);
@@ -194,15 +215,15 @@ private slots:
         QVERIFY(card->callInfo().recording);
         QVERIFY(card->recordButton()->styleSheet().contains(QStringLiteral("#dc2626")));
         card->volumeSlider()->setValue(150);
-        QCOMPARE(engine.volumeChanges.last().rxLevel, 1.5f);
+        QCOMPARE(rig.engine.volumeChanges.last().rxLevel, 1.5f);
 
         // Keyboard digits while connected send DTMF instead of filling the dial field.
-        window.dialpad()->numberEdit()->setFocus();
-        QTest::keyClicks(window.dialpad()->numberEdit(), QStringLiteral("42#"));
-        QVERIFY(window.dialpad()->text().isEmpty());
+        window->dialpad()->numberEdit()->setFocus();
+        QTest::keyClicks(window->dialpad()->numberEdit(), QStringLiteral("42#"));
+        QVERIFY(window->dialpad()->text().isEmpty());
         QCOMPARE(card->dtmfEcho(), QStringLiteral("42#"));
 
-        QTimer::singleShot(0, &window, []() {
+        QTimer::singleShot(0, window.get(), []() {
             auto *dlg =
                 qobject_cast<tincan::ui::TransferDialog *>(QApplication::activeModalWidget());
             QVERIFY(dlg != nullptr);
@@ -211,54 +232,46 @@ private slots:
             dlg->accept();
         });
         QTest::mouseClick(card->transferButton(), Qt::LeftButton);
-        QCOMPARE(engine.blindTransfers.size(), 1);
-        QCOMPARE(engine.blindTransfers.first().uri, QStringLiteral("sip:309@pbx.example.net"));
+        QCOMPARE(rig.engine.blindTransfers.size(), 1);
+        QCOMPARE(rig.engine.blindTransfers.first().uri, QStringLiteral("sip:309@pbx.example.net"));
     }
 
     void multiCallSwitchMergeAndDndBadgeWork() {
-        QTemporaryDir tempDir;
-        QVERIFY(tempDir.isValid());
-        tincan::SettingsStore settings(tempDir.filePath(QStringLiteral("tincan.ini")));
-        tincan::MemorySecretStore secrets;
-        tincan::test::FakeSipEngine engine;
-        tincan::AccountService accounts(engine, settings, secrets);
-        tincan::CallService calls(engine, accounts, settings);
-        tincan::AudioService audio(engine, settings);
-        engine.setEvents(&calls);
-        QVERIFY(accounts.addAccount(sampleOfficeAccount()));
+        SmokeRig rig;
+        QVERIFY(rig.tempDir.isValid());
+        QVERIFY(rig.accounts.addAccount(sampleOfficeAccount()));
 
-        tincan::ui::MainWindow window(accounts, calls, audio, settings, secrets);
-        tincan::ui::TrayIcon tray(accounts, calls, window);
-        window.show();
-        QVERIFY(QTest::qWaitForWindowExposed(&window));
+        auto window = rig.makeWindow();
+        tincan::ui::TrayIcon tray(rig.accounts, rig.calls, *window, &rig.messages, &rig.contacts);
+        window->show();
+        QVERIFY(QTest::qWaitForWindowExposed(window.get()));
 
-        QVERIFY(!window.dndBadge()->isVisible());
+        QVERIFY(!window->dndBadge()->isVisible());
         tray.dndAction()->trigger();
-        QVERIFY(window.dndBadge()->isVisible());
-        window.dndAction()->trigger();
-        QVERIFY(!window.dndBadge()->isVisible());
+        QVERIFY(window->dndBadge()->isVisible());
+        window->dndAction()->trigger();
+        QVERIFY(!window->dndBadge()->isVisible());
 
-        QVERIFY(calls.dial(QStringLiteral("201")).isEmpty());
-        const int firstId = engine.dialedCalls.first().callId;
-        engine.injectCallState(firstId, tincan::CallState::Confirmed, 200);
-        QVERIFY(calls.dial(QStringLiteral("202")).isEmpty());
-        const int secondId = engine.dialedCalls.last().callId;
-        engine.injectCallState(secondId, tincan::CallState::Confirmed, 200);
+        QVERIFY(rig.calls.dial(QStringLiteral("201")).isEmpty());
+        const int firstId = rig.engine.dialedCalls.first().callId;
+        rig.engine.injectCallState(firstId, tincan::CallState::Confirmed, 200);
+        QVERIFY(rig.calls.dial(QStringLiteral("202")).isEmpty());
+        const int secondId = rig.engine.dialedCalls.last().callId;
+        rig.engine.injectCallState(secondId, tincan::CallState::Confirmed, 200);
         QCoreApplication::processEvents();
 
-        QVERIFY(window.callPanel()->mergeButton()->isVisible());
-        tincan::ui::CallCard *card1 = window.callPanel()->cardForCall(firstId);
-        tincan::ui::CallCard *card2 = window.callPanel()->cardForCall(secondId);
+        QVERIFY(window->callPanel()->mergeButton()->isVisible());
+        tincan::ui::CallCard *card1 = window->callPanel()->cardForCall(firstId);
+        tincan::ui::CallCard *card2 = window->callPanel()->cardForCall(secondId);
         QVERIFY(card1->callInfo().localHold);
         QVERIFY(!card2->callInfo().localHold);
 
-        // Click first card to switch active call -> holds second and unholds first.
         QTest::mouseClick(card1, Qt::LeftButton);
         QVERIFY(!card1->callInfo().localHold);
         QVERIFY(card2->callInfo().localHold);
 
-        QTest::mouseClick(window.callPanel()->mergeButton(), Qt::LeftButton);
-        QCOMPARE(engine.conferenceCalls.size(), 1);
+        QTest::mouseClick(window->callPanel()->mergeButton(), Qt::LeftButton);
+        QCOMPARE(rig.engine.conferenceCalls.size(), 1);
     }
 };
 

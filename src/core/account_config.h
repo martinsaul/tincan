@@ -28,6 +28,7 @@ struct AccountConfig {
     QString publicAddress;
     QString dialPrefix;
     QString voicemailNumber;
+    bool publishPresence = false;
 
     QString idUri() const;
     QString registrarUri() const;

@@ -5,32 +5,71 @@
 
 #include "core/sip_events.h"
 
+#include <QList>
+
 namespace tincan {
 
 class SipEventRouter : public ISipEvents {
 public:
-    void setTarget(ISipEvents *target) { target_ = target; }
+    void setTarget(ISipEvents *target) {
+        listeners_.clear();
+        if (target != nullptr) {
+            listeners_.append(target);
+        }
+    }
+
+    void addListener(ISipEvents *listener) {
+        if (listener != nullptr && !listeners_.contains(listener)) {
+            listeners_.append(listener);
+        }
+    }
+
+    void clear() { listeners_.clear(); }
 
     void onRegistrationChanged(const RegistrationInfo &info) override {
-        if (target_ != nullptr) {
-            target_->onRegistrationChanged(info);
+        const QList<ISipEvents *> copy = listeners_;
+        for (ISipEvents *listener : copy) {
+            listener->onRegistrationChanged(info);
         }
     }
 
     void onIncomingCall(const CallInfo &info) override {
-        if (target_ != nullptr) {
-            target_->onIncomingCall(info);
+        const QList<ISipEvents *> copy = listeners_;
+        for (ISipEvents *listener : copy) {
+            listener->onIncomingCall(info);
         }
     }
 
     void onCallChanged(const CallInfo &info) override {
-        if (target_ != nullptr) {
-            target_->onCallChanged(info);
+        const QList<ISipEvents *> copy = listeners_;
+        for (ISipEvents *listener : copy) {
+            listener->onCallChanged(info);
+        }
+    }
+
+    void onPresenceChanged(const PresenceInfo &info) override {
+        const QList<ISipEvents *> copy = listeners_;
+        for (ISipEvents *listener : copy) {
+            listener->onPresenceChanged(info);
+        }
+    }
+
+    void onIncomingMessage(const MessageInfo &info) override {
+        const QList<ISipEvents *> copy = listeners_;
+        for (ISipEvents *listener : copy) {
+            listener->onIncomingMessage(info);
+        }
+    }
+
+    void onMessageStatus(quint64 token, int statusCode, const QString &reason) override {
+        const QList<ISipEvents *> copy = listeners_;
+        for (ISipEvents *listener : copy) {
+            listener->onMessageStatus(token, statusCode, reason);
         }
     }
 
 private:
-    ISipEvents *target_ = nullptr;
+    QList<ISipEvents *> listeners_;
 };
 
 } // namespace tincan

@@ -27,3 +27,4 @@ endfunction()
 
 tincan_add_e2e_test(tst_e2e_calls tst_e2e_calls.cpp)
 tincan_add_e2e_test(tst_e2e_features tst_e2e_features.cpp)
+tincan_add_e2e_test(tst_e2e_p4 tst_e2e_p4.cpp)

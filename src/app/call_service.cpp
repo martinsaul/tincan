@@ -8,6 +8,15 @@
 
 namespace tincan {
 
+namespace {
+
+bool isAnsweredElsewhere(const CallInfo &info) {
+    return info.lastStatusCode == 200 ||
+           info.lastReason.contains(QStringLiteral("elsewhere"), Qt::CaseInsensitive);
+}
+
+} // namespace
+
 CallService::CallService(ISipEngine &engine, AccountService &accounts, SettingsStore &settings,
                          QObject *parent)
     : QObject(parent), engine_(engine), accounts_(accounts), settings_(settings),
@@ -20,7 +29,6 @@ CallService::CallService(ISipEngine &engine, AccountService &accounts, SettingsS
 }
 
 QList<CallInfo> CallService::calls() const { return calls_; }
-
 int CallService::activeCallId() const { return activeCallId_; }
 
 int CallService::activeConfirmedCallId() const {
@@ -41,23 +49,23 @@ int CallService::activeConfirmedCallId() const {
     return -1;
 }
 
-QString CallService::dial(const QString &text) {
-    const auto account = accounts_.defaultAccount();
+QString CallService::dial(const QString &text) { return dialOnAccount({}, text); }
+
+QString CallService::dialOnAccount(const QString &accountId, const QString &text) {
+    const auto account =
+        accountId.trimmed().isEmpty() ? accounts_.defaultAccount() : accounts_.account(accountId);
     if (!account.has_value()) {
         const QString err = tr("No SIP account configured.");
         emit errorOccurred(err);
         return err;
     }
-
     const QString uri = SipUri::toSipUri(text, *account);
     if (uri.isEmpty()) {
         const QString err = tr("Invalid phone number or SIP URI.");
         emit errorOccurred(err);
         return err;
     }
-
     holdOtherActiveCalls(-1);
-
     QString engineError;
     const int callId = engine_.makeCall(account->id, uri, &engineError);
     if (callId < 0) {
@@ -66,7 +74,6 @@ QString CallService::dial(const QString &text) {
         emit errorOccurred(err);
         return err;
     }
-
     if (findCallIndex(callId) < 0) {
         CallInfo initial;
         initial.callId = callId;
@@ -107,11 +114,7 @@ bool CallService::hangup(int callId) {
 void CallService::hangupAll() {
     const QList<CallInfo> current = calls_;
     for (const CallInfo &c : current) {
-        if (c.isIncomingRinging()) {
-            (void)reject(c.callId);
-        } else {
-            (void)hangup(c.callId);
-        }
+        (void)(c.isIncomingRinging() ? reject(c.callId) : hangup(c.callId));
     }
 }
 
@@ -145,8 +148,6 @@ bool CallService::setHold(int callId, bool hold) {
     return ok;
 }
 
-bool CallService::setMute(int callId, bool mute) { return engine_.setMute(callId, mute); }
-
 bool CallService::sendDtmf(int callId, const QString &digits) {
     if (digits.isEmpty() || !engine_.sendDtmf(callId, digits, settings_.callSettings().dtmfMethod)) {
         return false;
@@ -168,8 +169,11 @@ bool CallService::transferBlind(int callId, const QString &target) {
 bool CallService::transferAttended(int callId, int targetCallId) {
     return engine_.transferAttended(callId, targetCallId);
 }
-
 bool CallService::conference(const QList<int> &callIds) { return engine_.conference(callIds); }
+bool CallService::unconference(int callId) { return engine_.unconference(callId); }
+void CallService::stopRecording(int callId) { engine_.stopRecording(callId); }
+bool CallService::isDnd() const { return settings_.callSettings().dnd; }
+bool CallService::setMute(int callId, bool mute) { return engine_.setMute(callId, mute); }
 
 bool CallService::mergeAllCalls() {
     QList<int> ids;
@@ -181,8 +185,6 @@ bool CallService::mergeAllCalls() {
     return ids.size() >= 2 && engine_.conference(ids);
 }
 
-bool CallService::unconference(int callId) { return engine_.unconference(callId); }
-
 bool CallService::startRecording(int callId) {
     const qsizetype idx = findCallIndex(callId);
     if (idx < 0) {
@@ -192,8 +194,6 @@ bool CallService::startRecording(int callId) {
         RecordingNamer::buildWavPath(settings_.callSettings().recordingsDir, calls_[idx].remoteUri);
     return engine_.startRecording(callId, wavPath);
 }
-
-void CallService::stopRecording(int callId) { engine_.stopRecording(callId); }
 
 bool CallService::toggleRecording(int callId) {
     const qsizetype idx = findCallIndex(callId);
@@ -207,8 +207,6 @@ bool CallService::toggleRecording(int callId) {
 bool CallService::setCallVolume(int callId, float rxLevel, float txLevel) {
     return engine_.setCallVolume(callId, rxLevel, txLevel);
 }
-
-bool CallService::isDnd() const { return settings_.callSettings().dnd; }
 
 void CallService::setDnd(bool enabled) {
     CallSettings cs = settings_.callSettings();
@@ -239,9 +237,8 @@ void CallService::onIncomingCall(const CallInfo &info) {
     if (normalized.state == CallState::Disconnected) {
         return;
     }
-
-    const bool busy = hasOtherActiveCall(normalized.callId);
-    const auto eval = incomingCoordinator_.handleIncoming(normalized, busy);
+    const auto eval =
+        incomingCoordinator_.handleIncoming(normalized, hasOtherActiveCall(normalized.callId));
     if (eval.outcome == IncomingCallCoordinator::ImmediateOutcome::Rejected486) {
         locallyHandledIds_.insert(normalized.callId);
         (void)engine_.reject(normalized.callId, 486);
@@ -249,49 +246,55 @@ void CallService::onIncomingCall(const CallInfo &info) {
     }
     if (eval.outcome == IncomingCallCoordinator::ImmediateOutcome::Redirected) {
         locallyHandledIds_.insert(normalized.callId);
-        const QString uri = resolveTargetForAccount(normalized.accountId, eval.redirectTarget);
-        (void)engine_.redirect(normalized.callId, uri);
+        (void)engine_.redirect(normalized.callId,
+                               resolveTargetForAccount(normalized.accountId, eval.redirectTarget));
         return;
     }
-
     upsertCall(normalized);
     emit incomingCall(normalized);
 }
 
 void CallService::onCallChanged(const CallInfo &info) {
-    const qsizetype idx = findCallIndex(info.callId);
     if (info.state == CallState::Disconnected) {
-        incomingCoordinator_.cancelTimers(info.callId);
-        autoRecordedIds_.remove(info.callId);
-        const bool missed = idx >= 0 && calls_[idx].isIncomingRinging() &&
-                            !calls_[idx].connectedAt.isValid() &&
-                            !locallyHandledIds_.contains(info.callId);
-        if (idx >= 0) {
-            calls_.removeAt(idx);
-        }
-        locallyHandledIds_.remove(info.callId);
-        if (activeCallId_ == info.callId) {
-            selectFallbackActiveCall();
-        }
-        tones_.update(calls_);
-        if (idx >= 0) {
-            emit callRemoved(info);
-        }
-        if (missed) {
-            emit missedCall(info);
-        }
+        handleDisconnected(info);
         return;
     }
-
     if (!info.isIncomingRinging()) {
         incomingCoordinator_.cancelTimers(info.callId);
     }
     upsertCall(info);
-
     if (info.state == CallState::Confirmed && settings_.callSettings().autoRecord &&
         !info.recording && !autoRecordedIds_.contains(info.callId)) {
         autoRecordedIds_.insert(info.callId);
         (void)startRecording(info.callId);
+    }
+}
+
+void CallService::handleDisconnected(const CallInfo &info) {
+    const qsizetype idx = findCallIndex(info.callId);
+    incomingCoordinator_.cancelTimers(info.callId);
+    autoRecordedIds_.remove(info.callId);
+    CallInfo finalInfo = info;
+    if (idx >= 0 && !finalInfo.connectedAt.isValid()) {
+        finalInfo.connectedAt = calls_[idx].connectedAt;
+    }
+    const bool wasHandled = locallyHandledIds_.remove(info.callId);
+    const bool missed = idx >= 0 && calls_[idx].isIncomingRinging() &&
+                        !finalInfo.connectedAt.isValid() && !wasHandled &&
+                        !isAnsweredElsewhere(finalInfo);
+    if (idx >= 0) {
+        calls_.removeAt(idx);
+    }
+    if (activeCallId_ == info.callId) {
+        selectFallbackActiveCall();
+    }
+    tones_.update(calls_);
+    if (idx >= 0) {
+        emit callRemoved(finalInfo);
+        emit callEnded(finalInfo, missed);
+    }
+    if (missed) {
+        emit missedCall(finalInfo);
     }
 }
 
@@ -345,11 +348,10 @@ void CallService::holdOtherActiveCalls(int exceptCallId) {
 }
 
 void CallService::setActiveCallId(int callId) {
-    if (activeCallId_ == callId) {
-        return;
+    if (activeCallId_ != callId) {
+        activeCallId_ = callId;
+        emit activeCallChanged(callId);
     }
-    activeCallId_ = callId;
-    emit activeCallChanged(callId);
 }
 
 void CallService::selectFallbackActiveCall() {
@@ -384,8 +386,7 @@ void CallService::onNoAnswerTimeout(int callId, const QString &accountId, const 
     const qsizetype idx = findCallIndex(callId);
     if (idx >= 0 && calls_[idx].isIncomingRinging()) {
         locallyHandledIds_.insert(callId);
-        const QString uri = resolveTargetForAccount(accountId, target);
-        (void)engine_.redirect(callId, uri);
+        (void)engine_.redirect(callId, resolveTargetForAccount(accountId, target));
     }
 }
 
