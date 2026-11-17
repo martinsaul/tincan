@@ -46,6 +46,9 @@ public:
 
     bool setHoldState(bool hold);
     bool setMuted(bool mute);
+    // Main thread only: connects the microphone to active audio unless muted.
+    void applyCaptureRouting();
+    bool isCaptureConnected() const;
     bool sendDtmfDigits(const QString &digits, DtmfMethod method);
     bool setVolume(float rxLevel, float txLevel);
     void stopInbandDtmf();

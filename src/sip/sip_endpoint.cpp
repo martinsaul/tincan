@@ -30,8 +30,9 @@ pj::EpConfig buildEpConfig(const EngineConfig &config) {
     pj::EpConfig epCfg;
     epCfg.uaConfig.threadCnt = 1;
     epCfg.uaConfig.mainThreadOnly = false;
-    // Round-robin call ids over the largest pool, so an id is rarely reused
-    // while its old call's removal is still queued to the main thread.
+    // Use the whole compile-time pool (PJSUA_MAX_CALLS, 4 unless raised in
+    // config_site.h): pjsua hands out ids round-robin, so a larger pool makes
+    // it rarer that an id is reused while the old call's removal is queued.
     epCfg.uaConfig.maxCalls = PJSUA_MAX_CALLS;
     const QString ua = config.userAgent.trimmed().isEmpty()
                            ? QStringLiteral("Tincan/") + Version::string()

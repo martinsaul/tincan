@@ -316,6 +316,7 @@ void CallController::handleCallMediaOnMainThread(const SipCall *call, const Call
     if (registered != call || registered == nullptr) {
         return;
     }
+    registered->applyCaptureRouting();
     recorder_->syncCallMedia(info.callId, *registered);
     conference_->syncMedia(*calls_);
     events_.onCallChanged(enrichCallInfo(info));

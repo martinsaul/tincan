@@ -73,9 +73,8 @@ void SipCall::onCallMediaState(pj::OnCallMediaStateParam &prm) {
                 pj::AudioMedia callAudio = getAudioMedia(static_cast<int>(i));
                 applyMediaLevels(callAudio);
                 callAudio.startTransmit(audMgr.getPlaybackDevMedia());
-                if (med.status == PJSUA_CALL_MEDIA_ACTIVE && !muted_.load()) {
-                    audMgr.getCaptureDevMedia().startTransmit(callAudio);
-                }
+                // The microphone is connected only on the main thread
+                // (applyCaptureRouting), so it can never race with setMuted.
             }
         }
 
@@ -166,19 +165,51 @@ bool SipCall::setHoldState(bool hold) {
 
 bool SipCall::setMuted(bool mute) {
     muted_.store(mute);
+    applyCaptureRouting();
+    return true;
+}
+
+bool SipCall::isCaptureConnected() const {
     pj::AudioMedia callAudio;
-    if (tryGetAudioMedia(&callAudio)) {
+    if (!tryGetAudioMedia(&callAudio)) {
+        return false;
+    }
+    try {
+        const pj::ConfPortInfo capture =
+            endpoint_.audDevManager().getCaptureDevMedia().getPortInfo();
+        for (const int listener : capture.listeners) {
+            if (listener == callAudio.getPortId()) {
+                return true;
+            }
+        }
+    } catch (const pj::Error &) {
+    }
+    return false;
+}
+
+void SipCall::applyCaptureRouting() {
+    pj::CallInfo pjInfo;
+    try {
+        pjInfo = getInfo();
+    } catch (const pj::Error &) {
+        return;
+    }
+    pj::AudDevManager &audMgr = endpoint_.audDevManager();
+    for (std::size_t i = 0; i < pjInfo.media.size(); ++i) {
+        const pj::CallMediaInfo &med = pjInfo.media[i];
+        if (med.type != PJMEDIA_TYPE_AUDIO || med.audioConfSlot == PJSUA_INVALID_ID) {
+            continue;
+        }
         try {
-            pj::AudioMedia &capture = endpoint_.audDevManager().getCaptureDevMedia();
-            if (mute) {
-                capture.stopTransmit(callAudio);
+            pj::AudioMedia callAudio = getAudioMedia(static_cast<int>(i));
+            if (med.status == PJSUA_CALL_MEDIA_ACTIVE && !muted_.load()) {
+                audMgr.getCaptureDevMedia().startTransmit(callAudio);
             } else {
-                capture.startTransmit(callAudio);
+                audMgr.getCaptureDevMedia().stopTransmit(callAudio);
             }
         } catch (const pj::Error &) {
         }
     }
-    return true;
 }
 
 bool SipCall::sendDtmfDigits(const QString &digits, DtmfMethod method) {
@@ -284,6 +315,7 @@ CallInfo SipCall::snapshot() const {
     const pj::CallInfo pjInfo = getInfo();
     CallInfo info = CallInfoMapper::map(pjInfo, accountId_, connectedTimestamp());
     info.muted = muted_.load();
+    info.micConnected = isCaptureConnected();
     info.transferStatus = transferStatus_.load();
     info.rxLevel = rxLevel_.load();
     info.txLevel = txLevel_.load();
