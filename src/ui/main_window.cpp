@@ -282,4 +282,10 @@ void MainWindow::showErrorBanner(const QString &message) {
     });
 }
 
+void MainWindow::prefillDial(const QString &target) {
+    tabs_->setCurrentIndex(0);
+    dialpad_->setText(target);
+    dialpad_->setFocus();
+}
+
 } // namespace tincan::ui

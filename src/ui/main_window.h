@@ -58,6 +58,7 @@ public slots:
     void openSettingsDialog();
     void openAboutDialog();
     void requestQuit();
+    void prefillDial(const QString &target);
     void bringToFront();
     void showHistoryTab();
 

@@ -81,6 +81,8 @@ void Composition::wireDesktopIntegration() {
                      });
     QObject::connect(&dispatcher_, &CommandDispatcher::showRequested, &mainWindow_,
                      &ui::MainWindow::bringToFront);
+    QObject::connect(&dispatcher_, &CommandDispatcher::dialPrefillRequested, &mainWindow_,
+                     &ui::MainWindow::prefillDial);
     QObject::connect(&dispatcher_, &CommandDispatcher::quitRequested, &mainWindow_,
                      &ui::MainWindow::requestQuit);
     QObject::connect(&mainWindow_, &ui::MainWindow::settingsApplied, &mainWindow_,

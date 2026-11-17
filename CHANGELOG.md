@@ -35,7 +35,8 @@ First public release.
   and codec enable/order (Opus, G.722, PCMU, PCMA, GSM, Speex and more).
 - **Desktop integration**: system tray, minimise/close to tray, start
   minimised, autostart, single instance, `sip:`/`sips:`/`tel:`/`callto:`
-  URI handler, command line (`--answer`, `--hangup`, `--show`, `--quit`,
+  URI handler (links fill the dial field; they never call on their own),
+  command line (`--answer`, `--hangup`, `--show`, `--quit`,
   `--minimized`), freedesktop notifications and Qt Linguist translations
   (Brazilian Portuguese catalogue started).
 - **Polish**: only one keypad is visible during a call (the tabs collapse

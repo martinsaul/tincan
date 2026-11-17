@@ -31,7 +31,8 @@ bool CommandDispatcher::dispatch(const CommandLine &command) {
 
 bool CommandDispatcher::dial(const QString &target) {
     emit showRequested();
-    return callService_.dial(target).isEmpty();
+    emit dialPrefillRequested(target);
+    return true;
 }
 
 bool CommandDispatcher::answerFirstRinging() {

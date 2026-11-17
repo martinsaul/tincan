@@ -23,6 +23,9 @@ public:
 
 signals:
     void showRequested();
+    // A link or command-line target to put in the dial field. It is never
+    // dialled automatically: any web page can open a sip:/tel: link.
+    void dialPrefillRequested(const QString &target);
     void quitRequested();
 
 private:

@@ -48,13 +48,15 @@ class TestCommandDispatcher : public QObject {
     Q_OBJECT
 
 private slots:
-    void dialGoesThroughCallService() {
+    void dialLinkPrefillsButNeverCalls() {
         Rig rig;
         QSignalSpy shown(&rig.dispatcher, &tincan::CommandDispatcher::showRequested);
+        QSignalSpy prefill(&rig.dispatcher, &tincan::CommandDispatcher::dialPrefillRequested);
         QVERIFY(rig.dispatcher.dispatch(command(CommandLine::Action::Dial,
                                                 QStringLiteral("sip:123@host"))));
-        QCOMPARE(rig.engine.dialedCalls.size(), 1);
-        QCOMPARE(rig.engine.dialedCalls.first().uri, QStringLiteral("sip:123@host"));
+        QVERIFY(rig.engine.dialedCalls.isEmpty());
+        QCOMPARE(prefill.size(), 1);
+        QCOMPARE(prefill.first().first().toString(), QStringLiteral("sip:123@host"));
         QCOMPARE(shown.size(), 1);
     }
 

@@ -19,6 +19,7 @@
 #include "fake_sip_engine.h"
 #include "ui/general_page.h"
 #include "ui/incoming_call_popup.h"
+#include "ui/dialpad_widget.h"
 #include "ui/main_window.h"
 
 #include <QApplication>
@@ -70,12 +71,14 @@ class TestUiP5 : public QObject {
     Q_OBJECT
 
 private slots:
-    void forwardedSipUriDialsThroughPrimary() {
+    void forwardedSipUriPrefillsDialpadWithoutCalling() {
         P5Rig rig;
         QVERIFY(rig.tempDir.isValid());
         tincan::CommandDispatcher dispatcher(rig.calls);
         connect(&dispatcher, &tincan::CommandDispatcher::showRequested, &rig.window,
                 &tincan::ui::MainWindow::bringToFront);
+        connect(&dispatcher, &tincan::CommandDispatcher::dialPrefillRequested, &rig.window,
+                &tincan::ui::MainWindow::prefillDial);
 
         const QString server = rig.tempDir.filePath(QStringLiteral("p5.sock"));
         tincan::SingleInstance primary(server);
@@ -89,10 +92,10 @@ private slots:
         tincan::SingleInstance secondary(server);
         QCOMPARE(secondary.start(parsed.command), tincan::SingleInstance::Role::Forwarded);
 
-        QTRY_COMPARE(rig.engine.dialedCalls.size(), 1);
-        QCOMPARE(rig.engine.dialedCalls.first().uri, QStringLiteral("sip:123@host"));
-        QCOMPARE(rig.engine.dialedCalls.first().accountId, QStringLiteral("acc-1"));
         QTRY_VERIFY(rig.window.isVisible());
+        QTRY_COMPARE(rig.window.dialpad()->text(), QStringLiteral("sip:123@host"));
+        // A link must never place a call on its own (toll-fraud guard).
+        QVERIFY(rig.engine.dialedCalls.isEmpty());
     }
 
     void generalPagePersistsIncomingAlertMode() {

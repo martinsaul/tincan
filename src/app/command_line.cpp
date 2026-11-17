@@ -82,7 +82,7 @@ void setupParser(QCommandLineParser &parser, const Options &opts) {
                        opts.show, opts.quit, opts.minimized});
     parser.addPositionalArgument(
         QStringLiteral("target"),
-        Text::tr("Number or sip:, sips:, tel:, callto: URI to dial."), QStringLiteral("[target]"));
+        Text::tr("Number or sip:, sips:, tel:, callto: URI to put in the dial field."), QStringLiteral("[target]"));
 }
 
 bool looksLikeUri(const QString &text) {
