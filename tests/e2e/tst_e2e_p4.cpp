@@ -115,7 +115,11 @@ private slots:
         QCOMPARE(msg.accountId, QStringLiteral("local"));
         QCOMPARE(msg.body, body);
         QCOMPARE(msg.contentType, QStringLiteral("text/plain"));
-        QVERIFY(msg.fromUri.contains(QStringLiteral("127.0.0.1")));
+        // pjsua's From is its default account URI, sip:<host primary address>,
+        // which differs between machines (127.0.0.1 only on a host without a
+        // network), so check the shape rather than a specific address.
+        QVERIFY2(msg.fromUri.startsWith(QStringLiteral("sip:")) && msg.fromUri.size() > 4,
+                 qPrintable(msg.fromUri));
         QVERIFY(msg.receivedAt.isValid());
 
         // Verify display-name extraction and 200 OK response with a named From header.
