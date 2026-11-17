@@ -141,7 +141,10 @@ QWidget *CallCard::buildInCallControls() {
             [this](bool checked) { emit holdToggled(info_.callId, checked); });
     connect(muteButton_, &QPushButton::clicked, this,
             [this](bool checked) { emit muteToggled(info_.callId, checked); });
-    connect(keypadButton_, &QPushButton::toggled, dtmfPad_, &QWidget::setVisible);
+    connect(keypadButton_, &QPushButton::toggled, this, [this](bool open) {
+        dtmfPad_->setVisible(open);
+        emit keypadToggled(info_.callId, open);
+    });
     connect(transferButton_, &QPushButton::clicked, this,
             [this]() { emit transferClicked(info_.callId); });
     connect(dtmfPad_, &DtmfPad::digitPressed, this,
@@ -218,6 +221,10 @@ void CallCard::setActiveHighlight(bool active) {
 void CallCard::setKeypadExpanded(bool expanded) {
     keypadButton_->setChecked(expanded);
     dtmfPad_->setVisible(expanded);
+}
+
+bool CallCard::isKeypadOpen() const {
+    return info_.state == CallState::Confirmed && keypadButton_->isChecked();
 }
 
 void CallCard::appendDtmfEcho(const QString &digits) {

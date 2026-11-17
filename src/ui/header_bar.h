@@ -26,10 +26,12 @@ public:
     QLabel *dndBadge() const;
     QAction *dndAction() const;
     QAction *settingsAction() const;
+    QAction *aboutAction() const;
     QAction *quitAction() const;
 
 signals:
     void settingsRequested();
+    void aboutRequested();
     void quitRequested();
 
 private:
@@ -52,6 +54,7 @@ private:
     QLabel *dndBadge_ = nullptr;
     QAction *dndAction_ = nullptr;
     QAction *settingsAction_ = nullptr;
+    QAction *aboutAction_ = nullptr;
     QAction *quitAction_ = nullptr;
     QToolButton *menuButton_ = nullptr;
 };

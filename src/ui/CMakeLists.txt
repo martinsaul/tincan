@@ -3,6 +3,8 @@
 
 add_library(tincan_ui STATIC
     "${CMAKE_SOURCE_DIR}/resources/tincan.qrc"
+    about_dialog.h
+    about_dialog.cpp
     account_dialog.h
     account_dialog.cpp
     accounts_page.h

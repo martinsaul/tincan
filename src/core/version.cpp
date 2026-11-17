@@ -11,4 +11,8 @@ QString Version::string() {
     return QStringLiteral(TINCAN_VERSION_STRING);
 }
 
+QString Version::sourceUrl() {
+    return QStringLiteral(TINCAN_SOURCE_URL);
+}
+
 } // namespace tincan

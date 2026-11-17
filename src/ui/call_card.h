@@ -31,6 +31,8 @@ public:
     void updateCall(const CallInfo &info);
     void setActiveHighlight(bool active);
     void setKeypadExpanded(bool expanded);
+    // True while the call is connected and its in-call keypad is open.
+    bool isKeypadOpen() const;
     void appendDtmfEcho(const QString &digits);
     QString dtmfEcho() const;
 
@@ -50,6 +52,7 @@ signals:
     void holdToggled(int callId, bool hold);
     void muteToggled(int callId, bool mute);
     void dtmfDigitPressed(int callId, const QString &digit);
+    void keypadToggled(int callId, bool open);
     void transferClicked(int callId);
     void recordToggled(int callId);
     void volumeChanged(int callId, float rxLevel);

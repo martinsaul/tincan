@@ -3,7 +3,11 @@
 
 cmake_minimum_required(VERSION 3.25)
 
-project(tincan VERSION 0.1.0 LANGUAGES CXX)
+project(tincan
+    VERSION 0.1.0
+    DESCRIPTION "Lightweight SIP softphone for Linux"
+    HOMEPAGE_URL "https://github.com/martinsaul/tincan"
+    LANGUAGES CXX)
 
 include(GNUInstallDirs)
 
@@ -13,6 +17,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(TINCAN_WERROR "Treat compiler warnings as errors on Tincan targets" OFF)
+option(TINCAN_BUILD_TESTS "Build the unit, UI and end-to-end tests" ON)
 
 function(tincan_apply_warnings target_name)
     target_compile_options(${target_name} PRIVATE
@@ -25,16 +30,22 @@ endfunction()
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
-find_package(Qt6 REQUIRED COMPONENTS Core Sql Network DBus Widgets Svg Test LinguistTools)
+set(_tincan_qt_components Core Sql Network DBus Widgets Svg LinguistTools)
+if(TINCAN_BUILD_TESTS)
+    list(APPEND _tincan_qt_components Test)
+endif()
+find_package(Qt6 REQUIRED COMPONENTS ${_tincan_qt_components})
 find_package(Qt6Keychain REQUIRED)
 include(Pjproject)
 
 enable_testing()
 
 add_subdirectory(src)
-add_subdirectory(tests/unit)
-add_subdirectory(tests/ui)
-add_subdirectory(tests/e2e)
+if(TINCAN_BUILD_TESTS)
+    add_subdirectory(tests/unit)
+    add_subdirectory(tests/ui)
+    add_subdirectory(tests/e2e)
+endif()
 
 # Desktop integration files (see resources/linux).
 set(TINCAN_APP_ID io.github.martinsaul.Tincan)
@@ -48,6 +59,8 @@ install(FILES "${TINCAN_METAINFO_FILE}"
 install(FILES "${PROJECT_SOURCE_DIR}/resources/icons/tincan.svg"
     DESTINATION "${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps"
     RENAME "${TINCAN_APP_ID}.svg")
+
+include(Packaging)
 
 find_program(DESKTOP_FILE_VALIDATE desktop-file-validate)
 if(DESKTOP_FILE_VALIDATE)

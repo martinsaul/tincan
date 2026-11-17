@@ -10,6 +10,8 @@ namespace tincan {
 class Version {
 public:
     static QString string();
+    // Public source repository (AGPL section 13 source offer).
+    static QString sourceUrl();
 };
 
 } // namespace tincan

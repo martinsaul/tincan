@@ -1,0 +1,151 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Tincan contributors
+#
+# Publishes a GitHub Release for every v* tag: the .deb, the AppImage,
+# SHA256SUMS and the matching CHANGELOG.md section as release notes.
+#
+# Both packages are built in a Debian trixie container, the same toolchain
+# CI tests against. The AppImage is not built on ubuntu-22.04 because that
+# image ships CMake 3.22 and Qt 6.2, while Tincan needs CMake >= 3.25 and is
+# developed and tested against Qt 6.8. linuxdeploy runs fine in the container
+# with APPIMAGE_EXTRACT_AND_RUN=1 (no FUSE). The trade-off is the glibc
+# baseline: the AppImage needs glibc 2.41 or newer on the host.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+env:
+  BUILD_DEPS: >-
+    build-essential ca-certificates cmake curl dpkg-dev file git
+    libasound2-dev libopus-dev libpulse-dev libqt6sql6-sqlite libspeexdsp-dev
+    libsrtp2-dev libssl-dev ninja-build pkg-config qt6-base-dev
+    qt6-base-dev-tools qt6-l10n-tools qt6-svg-dev qt6-svg-plugins
+    qt6-tools-dev qt6-wayland qtkeychain-qt6-dev uuid-dev
+
+jobs:
+  deb:
+    runs-on: ubuntu-latest
+    container:
+      image: debian:trixie
+    steps:
+      - name: Install dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ${BUILD_DEPS}
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check that the tag matches the project version
+        run: |
+          version="$(sed -n 's/^ *VERSION \([0-9.]*\)$/\1/p' CMakeLists.txt | head -n1)"
+          test "v${version}" = "${GITHUB_REF_NAME}" || {
+            echo "Tag ${GITHUB_REF_NAME} does not match project version ${version}" >&2
+            exit 1
+          }
+
+      - name: Build pinned pjproject
+        run: tools/build-pjproject.sh
+
+      - name: Build Release
+        run: |
+          cmake -G Ninja -B build-rel -DCMAKE_BUILD_TYPE=Release -DTINCAN_BUILD_TESTS=OFF
+          cmake --build build-rel
+
+      - name: Package .deb
+        run: |
+          cd build-rel
+          cpack -G DEB
+          dpkg-deb -I ./*.deb
+          dpkg-deb -c ./*.deb
+
+      - name: Upload .deb
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb
+          path: build-rel/*.deb
+          if-no-files-found: error
+
+  appimage:
+    runs-on: ubuntu-latest
+    container:
+      image: debian:trixie
+    steps:
+      - name: Install dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ${BUILD_DEPS}
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build pinned pjproject
+        run: tools/build-pjproject.sh
+
+      - name: Build AppImage
+        env:
+          TINCAN_APPIMAGE_OUTPUT_DIR: ${{ github.workspace }}/dist
+        run: packaging/appimage/build-appimage.sh
+
+      - name: Upload AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: appimage
+          path: dist/*.AppImage
+          if-no-files-found: error
+
+  publish:
+    needs: [deb, appimage]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Generate SHA256SUMS
+        working-directory: dist
+        run: |
+          sha256sum -- *.deb *.AppImage > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Extract release notes from CHANGELOG.md
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v hdr="## [${version}]" '
+            index($0, hdr) == 1 { found = 1; next }
+            found && /^## \[/ { exit }
+            found && /^\[[^]]*\]: / { exit }
+            found { print }
+          ' CHANGELOG.md > release-notes.md
+          if ! grep -q '[^[:space:]]' release-notes.md; then
+            echo "CHANGELOG.md has no section for ${version}" >&2
+            exit 1
+          fi
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title "Tincan ${GITHUB_REF_NAME#v}" \
+            --notes-file release-notes.md \
+            dist/*.deb dist/*.AppImage dist/SHA256SUMS

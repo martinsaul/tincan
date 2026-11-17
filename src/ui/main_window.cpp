@@ -3,6 +3,7 @@
 
 #include "ui/main_window.h"
 
+#include "ui/about_dialog.h"
 #include "ui/call_panel.h"
 #include "ui/contacts_view.h"
 #include "ui/dialpad_widget.h"
@@ -70,7 +71,10 @@ MainWindow::MainWindow(AccountService &accountService, CallService &callService,
 
     setupTabs(central);
     root->addWidget(tabs_, 1);
+    // Takes the free space only while the tabs are collapsed during a call.
+    root->addStretch(0);
     setCentralWidget(central);
+    restoreWindowState();
 
     if (QCoreApplication *app = QCoreApplication::instance()) {
         app->installEventFilter(this);
@@ -100,6 +104,9 @@ void MainWindow::setupTabs(QWidget *central) {
 void MainWindow::connectSignals() {
     connect(headerBar_, &HeaderBar::settingsRequested, this, &MainWindow::openSettingsDialog);
     connect(headerBar_, &HeaderBar::quitRequested, this, &MainWindow::requestQuit);
+    connect(headerBar_, &HeaderBar::aboutRequested, this, &MainWindow::openAboutDialog);
+    connect(callPanel_, &CallPanel::inCallKeypadShownChanged, this,
+            &MainWindow::onInCallKeypadShown);
     connect(dialpad_, &DialpadWidget::dialRequested, this, &MainWindow::onDialRequested);
     connect(contactsView_, &ContactsView::callRequested, this,
             &MainWindow::onDialOnAccountRequested);
@@ -133,6 +140,35 @@ QTabWidget *MainWindow::tabs() const { return tabs_; }
 QComboBox *MainWindow::presenceCombo() const { return headerBar_->presenceCombo(); }
 QLabel *MainWindow::dndBadge() const { return headerBar_->dndBadge(); }
 QAction *MainWindow::dndAction() const { return headerBar_->dndAction(); }
+QAction *MainWindow::aboutAction() const { return headerBar_->aboutAction(); }
+
+MainWindow::~MainWindow() { saveWindowState(); }
+
+void MainWindow::setPjsipVersion(const QString &version) { pjsipVersion_ = version; }
+
+void MainWindow::openAboutDialog() {
+    AboutDialog dlg(pjsipVersion_, this);
+    dlg.exec();
+}
+
+void MainWindow::restoreWindowState() {
+    const WindowState state = settingsStore_.windowState();
+    if (!state.geometry.isEmpty()) {
+        (void)restoreGeometry(state.geometry);
+    }
+    if (state.lastTab >= 0 && state.lastTab < tabs_->count()) {
+        tabs_->setCurrentIndex(state.lastTab);
+    }
+}
+
+void MainWindow::saveWindowState() {
+    settingsStore_.setWindowState(WindowState{saveGeometry(), tabs_->currentIndex()});
+}
+
+void MainWindow::onInCallKeypadShown(bool shown) {
+    // One keypad at a time: the call card's keypad replaces the tab area.
+    tabs_->setVisible(!shown);
+}
 
 void MainWindow::openSettingsDialog() {
     SettingsDialog dlg(accountService_, audioService_, settingsStore_, secretStore_, this);
@@ -161,6 +197,7 @@ void MainWindow::requestQuit() {
 }
 
 void MainWindow::closeEvent(QCloseEvent *event) {
+    saveWindowState();
     if (!quitting_ && settingsStore_.generalSettings().closeToTray) {
         hide();
         event->ignore();

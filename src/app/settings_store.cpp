@@ -340,6 +340,19 @@ void SettingsStore::setSecretFallbackChoice(SecretFallbackChoice choice) {
     syncAndRestrictPermissions();
 }
 
+WindowState SettingsStore::windowState() const {
+    WindowState state;
+    state.geometry = settings_.value(QStringLiteral("window/geometry")).toByteArray();
+    state.lastTab = settings_.value(QStringLiteral("window/lastTab"), 0).toInt();
+    return state;
+}
+
+void SettingsStore::setWindowState(const WindowState &state) {
+    settings_.setValue(QStringLiteral("window/geometry"), state.geometry);
+    settings_.setValue(QStringLiteral("window/lastTab"), state.lastTab);
+    syncAndRestrictPermissions();
+}
+
 void SettingsStore::syncAndRestrictPermissions() {
     settings_.sync();
     QFile::setPermissions(filePath_, QFileDevice::ReadOwner | QFileDevice::WriteOwner);

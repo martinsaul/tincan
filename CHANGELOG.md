@@ -1,0 +1,51 @@
+# Changelog
+
+All notable changes to Tincan are documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+## [0.1.0] - 2026-11-16
+
+First public release.
+
+### Added
+
+- **Accounts**: several SIP accounts with one default; registrar, outbound
+  proxy, auth user, display name, UDP/TCP/TLS transport, SRTP (off, optional,
+  mandatory), STUN, ICE, public-address override, registration expiry, dial
+  prefix and voicemail number. Passwords are kept in the Secret Service via
+  QtKeychain; without one, Tincan asks before using a private config file.
+- **Calls**: dial pad with paste-to-dial clean-up and redial; answer, reject,
+  hang up, hold/resume, mute, per-call speaker volume, DTMF (RFC 4733, SIP
+  INFO or in-band), blind and attended transfer, several simultaneous calls,
+  local three-way conference, call recording to WAV and a call timer.
+- **Incoming calls**: in-app popup and/or desktop notification with Answer and
+  Reject, ringtone choice, call-waiting tone, auto-answer (always or on
+  intercom headers), Do Not Disturb and local forwarding (always, busy, no
+  answer).
+- **Contacts and history**: local address book with CSV import/export,
+  presence and BLF through SUBSCRIBE, own presence publishing, call history
+  with missed-call badge, filter and call back.
+- **Messaging**: SIP MESSAGE chat per contact, stored locally, with unread
+  badges.
+- **Audio**: capture, playback and ring device selection, echo cancellation
+  and codec enable/order (Opus, G.722, PCMU, PCMA, GSM, Speex and more).
+- **Desktop integration**: system tray, minimise/close to tray, start
+  minimised, autostart, single instance, `sip:`/`sips:`/`tel:`/`callto:`
+  URI handler, command line (`--answer`, `--hangup`, `--show`, `--quit`,
+  `--minimized`), freedesktop notifications and Qt Linguist translations
+  (Brazilian Portuguese catalogue started).
+- **Polish**: only one keypad is visible during a call (the tabs collapse
+  while the in-call keypad is open), the window remembers its size, position
+  and last tab, and an About dialog shows versions, licence, source link and
+  credits.
+- **Packaging**: `.deb` (CPack), AppImage (linuxdeploy) and a Flatpak
+  manifest; man page `tincan(1)`; third-party notices and a machine-readable
+  copyright file; release workflow that publishes the packages with
+  `SHA256SUMS`.
+
+[Unreleased]: https://github.com/martinsaul/tincan/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/martinsaul/tincan/releases/tag/v0.1.0

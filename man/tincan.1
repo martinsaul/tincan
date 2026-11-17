@@ -1,0 +1,122 @@
+.\" SPDX-License-Identifier: AGPL-3.0-or-later
+.\" Copyright (C) 2026 Tincan contributors
+.TH TINCAN 1 "2026-11-16" "Tincan 0.1.0" "User Commands"
+.SH NAME
+tincan \- lightweight SIP softphone for Linux
+.SH SYNOPSIS
+.B tincan
+.RI [ options ]
+.RI [ target ]
+.SH DESCRIPTION
+.B tincan
+is a small SIP softphone with a compact window, a dial pad, a system tray
+icon and desktop notifications. It supports several SIP accounts, calls with
+hold, mute, transfer, local conference and recording, contacts with presence,
+call history and SIP MESSAGE chat. SIP signalling and media are handled by
+PJSIP.
+.PP
+Only one instance runs per user session. Starting
+.B tincan
+again forwards the target or command to the running instance and exits;
+starting it without arguments brings the existing window to the front.
+.SH ARGUMENTS
+.TP
+.I target
+A phone number or a
+.BR sip: ,
+.BR sips: ,
+.B tel:
+or
+.B callto:
+URI to dial with the default account. Spaces, dashes and brackets in
+numbers are removed before dialling.
+.SH OPTIONS
+.TP
+.BR \-h ", " \-\-help
+Show a summary of the options and exit.
+.TP
+.B \-\-help\-all
+Also show the generic Qt options and exit.
+.TP
+.BR \-v ", " \-\-version
+Print the Tincan and PJSIP versions and exit.
+.TP
+.B \-\-answer
+Answer the ringing call.
+.TP
+.B \-\-hangup
+Hang up the active call.
+.TP
+.B \-\-show
+Show the window of the running instance.
+.TP
+.B \-\-quit
+Quit the running instance.
+.TP
+.B \-\-minimized
+Start hidden in the system tray.
+.TP
+.B \-\-null\-audio
+Use the PJSIP null audio device instead of real sound hardware. Useful for
+testing and on machines without audio devices.
+.SH FILES
+.TP
+.I $XDG_CONFIG_HOME/tincan/tincan.ini
+Settings and SIP accounts (default
+.IR ~/.config/tincan/tincan.ini ).
+Passwords are not written here; see
+.BR SECURITY .
+.TP
+.I $XDG_DATA_HOME/tincan/tincan.sqlite
+Contacts, call history and chat messages (default
+.IR ~/.local/share/tincan/ ).
+.TP
+.I $XDG_MUSIC_DIR/Tincan
+Default folder for call recordings (WAV).
+.SH SECURITY
+Account passwords are stored with the desktop's Secret Service
+(GNOME Keyring, KWallet and compatible) through QtKeychain. If no Secret
+Service is available, Tincan asks before storing a password in a file
+readable only by the user.
+.SH ENVIRONMENT
+.TP
+.B QT_QPA_PLATFORM
+Selects the Qt platform plugin, for example
+.B offscreen
+for headless use.
+.TP
+.B LANG
+Selects the user interface language when a translation is available.
+.SH EXIT STATUS
+.B 0
+on success,
+.B 1
+if the SIP engine cannot start or the running instance cannot be reached,
+.B 2
+on invalid command-line arguments.
+.SH EXAMPLES
+.TP
+.B tincan sip:200@pbx.example.com
+Call extension 200 on pbx.example.com.
+.TP
+.B tincan tel:+15551234567
+Call a telephone number through the default account.
+.TP
+.B tincan \-\-answer
+Answer the incoming call from a keyboard shortcut or script.
+.SH BUGS
+Report bugs at
+.UR https://github.com/martinsaul/tincan/issues
+.UE .
+.SH AUTHORS
+Tincan contributors. Tincan is inspired by MicroSIP, but is an independent
+project and is not affiliated with it.
+.SH COPYRIGHT
+Copyright \(co 2026 Tincan contributors. License AGPL-3.0-or-later:
+GNU Affero General Public License version 3 or later
+.UR https://www.gnu.org/licenses/agpl-3.0.html
+.UE .
+This is free software: you are free to change and redistribute it. There is
+NO WARRANTY, to the extent permitted by law. The source code is available at
+.UR https://github.com/martinsaul/tincan
+.UE .

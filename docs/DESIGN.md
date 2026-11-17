@@ -33,7 +33,7 @@ features a lightweight softphone should have and how small it can feel.
 | Tests | QtTest unit tests; headless end-to-end test against a `pjsua` peer | Real SIP on loopback, no mocks of PJSIP |
 
 Licences: PJSIP is GPL-2.0-or-later, Qt is LGPL-3.0, QtKeychain is
-BSD-3-Clause, Opus is BSD. All are compatible with AGPL-3.0-or-later.
+BSD-2-Clause, Opus is BSD. All are compatible with AGPL-3.0-or-later.
 
 ## Feature scope
 
@@ -138,5 +138,10 @@ thread, never inside its own callback.
 ## Packaging
 - `cmake --install` layout with `.desktop` file (declares
   `x-scheme-handler/sip`, `tel`, `callto`), AppStream metainfo, icons.
-- Release artifacts: AppImage and a `.deb`, built in GitHub Actions.
-- Flatpak manifest later.
+- Man page `tincan.1`, `THIRD_PARTY_NOTICES.md` and a machine-readable
+  `copyright` file in `share/doc/tincan`.
+- Release artifacts, built by `.github/workflows/release.yml` on `v*` tags:
+  a `.deb` (CPack, Debian trixie) and an AppImage
+  (`packaging/appimage/build-appimage.sh`, linuxdeploy), plus `SHA256SUMS`.
+- Flatpak manifest in `packaging/flatpak/` (KDE runtime 6.8); not built in
+  CI yet.

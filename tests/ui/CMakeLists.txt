@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Tincan contributors
 
-foreach(ui_test IN ITEMS tst_ui_smoke tst_ui_p4 tst_ui_p5)
+foreach(ui_test IN ITEMS tst_ui_smoke tst_ui_p4 tst_ui_p5 tst_ui_p6)
     add_executable(${ui_test}
         ${ui_test}.cpp
         "${CMAKE_SOURCE_DIR}/tests/fakes/fake_sip_engine.cpp"

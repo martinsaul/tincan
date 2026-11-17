@@ -7,6 +7,7 @@
 #include "core/account_config.h"
 #include "core/dtmf_method.h"
 
+#include <QByteArray>
 #include <QList>
 #include <QSettings>
 #include <QString>
@@ -52,6 +53,12 @@ struct CallSettings {
     bool autoRecord = false;
 };
 
+// Main window placement and the tab that was open last.
+struct WindowState {
+    QByteArray geometry;
+    int lastTab = 0;
+};
+
 class SettingsStore {
 public:
     explicit SettingsStore(QString filePath = {});
@@ -75,6 +82,9 @@ public:
 
     SecretFallbackChoice secretFallbackChoice() const;
     void setSecretFallbackChoice(SecretFallbackChoice choice);
+
+    WindowState windowState() const;
+    void setWindowState(const WindowState &state);
 
 private:
     void syncAndRestrictPermissions();

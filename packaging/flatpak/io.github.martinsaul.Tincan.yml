@@ -1,0 +1,108 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Tincan contributors
+#
+# Flatpak manifest for Tincan. Not built in CI yet. Local build:
+#   flatpak-builder --user --install --force-clean build-flatpak \
+#       packaging/flatpak/io.github.martinsaul.Tincan.yml
+#
+# Source checksums: opus matches upstream's SHA256SUMS.txt; pjproject is the
+# same pinned tarball as tools/build-pjproject.sh; the libsrtp and qtkeychain
+# values are the SHA-256 of GitHub's tag archives at the time of pinning.
+
+id: io.github.martinsaul.Tincan
+runtime: org.kde.Platform
+runtime-version: '6.8'
+sdk: org.kde.Sdk
+command: tincan
+
+finish-args:
+  - --share=ipc
+  - --share=network
+  - --socket=pulseaudio
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  # Desktop notifications, Secret Service passwords and the tray icon.
+  - --talk-name=org.freedesktop.Notifications
+  - --talk-name=org.freedesktop.secrets
+  - --talk-name=org.kde.StatusNotifierWatcher
+  # Default folder for call recordings.
+  - --filesystem=xdg-music/Tincan:create
+
+cleanup:
+  - /include
+  - /lib/pkgconfig
+  - /lib/cmake
+  - /share/man
+  - '*.a'
+  - '*.la'
+
+modules:
+  - name: libsrtp2
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DBUILD_SHARED_LIBS=ON
+      - -DENABLE_OPENSSL=ON
+      - -DLIBSRTP_TEST_APPS=OFF
+    sources:
+      - type: archive
+        url: https://github.com/cisco/libsrtp/archive/refs/tags/v2.7.0.tar.gz
+        sha256: 54facb1727a557c2a76b91194dcb2d0a453aaf8e2d0cbbf1e3c2848c323e28ad
+
+  - name: opus
+    buildsystem: autotools
+    config-opts:
+      - --disable-static
+      - --disable-doc
+      - --disable-extra-programs
+    sources:
+      - type: archive
+        url: https://downloads.xiph.org/releases/opus/opus-1.5.2.tar.gz
+        sha256: 65c1d2f78b9f2fb20082c38cbe47c951ad5839345876e46941612ee87f9a7ce1
+
+  - name: pjproject
+    buildsystem: simple
+    build-options:
+      cflags: -O2 -fPIC
+      cxxflags: -O2 -fPIC
+    build-commands:
+      # Same configuration as tools/build-pjproject.sh.
+      - printf '#define PJMEDIA_HAS_VIDEO 0\n#define PJ_HAS_IPV6 1\n' > pjlib/include/pj/config_site.h
+      - ./configure --prefix=/app --disable-video --disable-sdl --disable-ffmpeg --disable-v4l2
+        --disable-openh264 --disable-libyuv --disable-libwebrtc --with-external-srtp
+        --enable-shared=no
+      - make dep
+      - make -j${FLATPAK_BUILDER_N_JOBS}
+      - make install
+    sources:
+      - type: archive
+        url: https://github.com/pjsip/pjproject/archive/refs/tags/2.17.tar.gz
+        sha256: 065fe06c06788d97c35f563796d59f00ce52fe9558a52d7b490a042a966facce
+
+  - name: qtkeychain
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DBUILD_WITH_QT6=ON
+      - -DBUILD_TEST_APPLICATION=OFF
+      - -DBUILD_TRANSLATIONS=OFF
+    sources:
+      - type: archive
+        url: https://github.com/frankosterfeld/qtkeychain/archive/refs/tags/0.15.0.tar.gz
+        sha256: f4254dc8f0933b06d90672d683eab08ef770acd8336e44dfa030ce041dc2ca22
+
+  - name: tincan
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DTINCAN_BUILD_TESTS=OFF
+      - -DTINCAN_PJ_PREFIX=/app
+    sources:
+      - type: dir
+        path: ../..
+        skip:
+          - build
+          - build-rel
+          - build-appimage
+          - third_party

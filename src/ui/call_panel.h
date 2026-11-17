@@ -26,6 +26,11 @@ public:
     QList<CallCard *> cards() const;
     CallCard *cardForCall(int callId) const;
     QPushButton *mergeButton() const;
+    // True while any connected call shows its in-call keypad.
+    bool isInCallKeypadShown() const;
+
+signals:
+    void inCallKeypadShownChanged(bool shown);
 
 private:
     CallInfo enrichWithContactName(CallInfo info) const;
@@ -38,12 +43,14 @@ private:
     void openTransferDialog(int callId);
     void refreshActiveHighlights();
     void syncVisibility();
+    void refreshKeypadShown();
 
     CallService &callService_;
     ContactService *contactService_ = nullptr;
     QPushButton *mergeButton_ = nullptr;
     QVBoxLayout *cardsLayout_ = nullptr;
     QMap<int, CallCard *> cards_;
+    bool keypadShown_ = false;
 };
 
 } // namespace tincan::ui

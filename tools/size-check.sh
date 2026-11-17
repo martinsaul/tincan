@@ -23,8 +23,9 @@ check_file_sizes() {
             echo "WARNING: ${rel} has ${lines} lines (soft target: ${SOFT_LINE_LIMIT})" >&2
         fi
     done < <(find "${REPO_ROOT}/src" "${REPO_ROOT}/tests" "${REPO_ROOT}/tools" \
-        -type f \( -name '*.cpp' -o -name '*.h' -o -name '*.sh' -o -name 'CMakeLists.txt' \) \
-        -print0 | sort -z)
+        "${REPO_ROOT}/cmake" "${REPO_ROOT}/packaging" \
+        -type f \( -name '*.cpp' -o -name '*.h' -o -name '*.sh' -o -name 'CMakeLists.txt' \
+        -o -name '*.cmake' \) -print0 | sort -z)
 
     return "${status}"
 }

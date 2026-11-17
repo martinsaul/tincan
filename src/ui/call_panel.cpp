@@ -60,6 +60,7 @@ CallPanel::CallPanel(CallService &callService, ContactService *contactService, Q
 QList<CallCard *> CallPanel::cards() const { return cards_.values(); }
 CallCard *CallPanel::cardForCall(int callId) const { return cards_.value(callId, nullptr); }
 QPushButton *CallPanel::mergeButton() const { return mergeButton_; }
+bool CallPanel::isInCallKeypadShown() const { return keypadShown_; }
 
 CallInfo CallPanel::enrichWithContactName(CallInfo info) const {
     if (contactService_ != nullptr) {
@@ -125,6 +126,7 @@ void CallPanel::connectCardSignals(CallCard *card) {
     connect(card, &CallCard::dtmfDigitPressed, this,
             [this](int id, const QString &digit) { (void)callService_.sendDtmf(id, digit); });
     connect(card, &CallCard::transferClicked, this, &CallPanel::openTransferDialog);
+    connect(card, &CallCard::keypadToggled, this, [this](int, bool) { refreshKeypadShown(); });
     connect(card, &CallCard::recordToggled, this,
             [this](int id) { (void)callService_.toggleRecording(id); });
     connect(card, &CallCard::volumeChanged, this, [this](int id, float rx) {
@@ -177,6 +179,18 @@ void CallPanel::refreshActiveHighlights() {
 void CallPanel::syncVisibility() {
     mergeButton_->setVisible(cards_.size() >= 2);
     setVisible(!cards_.isEmpty());
+    refreshKeypadShown();
+}
+
+void CallPanel::refreshKeypadShown() {
+    bool shown = false;
+    for (const CallCard *card : std::as_const(cards_)) {
+        shown = shown || card->isKeypadOpen();
+    }
+    if (shown != keypadShown_) {
+        keypadShown_ = shown;
+        emit inCallKeypadShownChanged(shown);
+    }
 }
 
 } // namespace tincan::ui

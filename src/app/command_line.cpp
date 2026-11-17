@@ -4,6 +4,7 @@
 #include "app/command_line.h"
 
 #include "app/uri_parser.h"
+#include "core/version.h"
 
 #include <QCommandLineOption>
 #include <QCommandLineParser>
@@ -64,8 +65,18 @@ struct Options {
     Options() { screenshot.setFlags(QCommandLineOption::HiddenFromHelp); }
 };
 
+// QCommandLineParser has no epilogue; this is appended to its help text.
+QString helpEpilogue() {
+    return QStringLiteral("\n%1\n  tincan sip:200@pbx.example.com\n  tincan tel:+15551234567\n"
+                          "  tincan --answer\n  tincan --hangup\n\n%2\n%3\n")
+        .arg(Text::tr("Examples:"),
+             Text::tr("A second invocation forwards its command to the running instance."),
+             Text::tr("Source code and bug reports: %1").arg(Version::sourceUrl()));
+}
+
 void setupParser(QCommandLineParser &parser, const Options &opts) {
-    parser.setApplicationDescription(Text::tr("Lightweight SIP softphone for Linux"));
+    parser.setApplicationDescription(
+        Text::tr("Tincan %1 - lightweight SIP softphone for Linux").arg(Version::string()));
     parser.addHelpOption();
     parser.addOptions({opts.version, opts.nullAudio, opts.screenshot, opts.answer, opts.hangup,
                        opts.show, opts.quit, opts.minimized});
@@ -194,7 +205,7 @@ CommandLineParseResult parseCommandLine(const QStringList &arguments) {
     const Options opts;
     QCommandLineParser parser;
     setupParser(parser, opts);
-    result.helpText = parser.helpText();
+    result.helpText = parser.helpText() + helpEpilogue();
     if (!parser.parse(arguments)) {
         result.ok = false;
         result.errorText = parser.errorText();

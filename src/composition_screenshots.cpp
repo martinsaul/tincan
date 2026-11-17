@@ -5,6 +5,8 @@
 
 #include "composition.h"
 
+#include "sip/pj_version.h"
+#include "ui/about_dialog.h"
 #include "ui/call_card.h"
 #include "ui/call_panel.h"
 #include "ui/chat_window.h"
@@ -109,7 +111,6 @@ bool Composition::saveScreenshots(const QString &directoryPath) {
     if (ui::CallCard *card = mainWindow_.callPanel()->cardForCall(sample.callId)) {
         card->setKeypadExpanded(true);
         card->appendDtmfEcho(QStringLiteral("120#"));
-        mainWindow_.resize(320, 680);
         QCoreApplication::processEvents();
         cardOk = card->grab().save(dir.filePath(QStringLiteral("call_card.png")));
         (void)mainWindow_.grab().save(dir.filePath(QStringLiteral("main_window_in_call.png")));
@@ -117,7 +118,6 @@ bool Composition::saveScreenshots(const QString &directoryPath) {
     sample.state = CallState::Disconnected;
     sample.lastStatusCode = 200;
     callService_.onCallChanged(sample);
-    mainWindow_.resize(320, 560);
     QCoreApplication::processEvents();
 
     mainWindow_.tabs()->setCurrentIndex(1);
@@ -171,6 +171,12 @@ bool Composition::saveSettingsScreenshots(const QDir &dir) {
     settingsDlg.setCurrentPageIndex(3);
     QCoreApplication::processEvents();
     (void)settingsDlg.grab().save(dir.filePath(QStringLiteral("settings_calls.png")));
+    settingsDlg.hide();
+
+    ui::AboutDialog about(QString::fromStdString(sip::PjVersion::string()), &mainWindow_);
+    about.show();
+    QCoreApplication::processEvents();
+    (void)about.grab().save(dir.filePath(QStringLiteral("about_dialog.png")));
     return settingsOk;
 }
 

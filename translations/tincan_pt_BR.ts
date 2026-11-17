@@ -77,10 +77,6 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Lightweight SIP softphone for Linux</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Number or sip:, sips:, tel:, callto: URI to dial.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -94,6 +90,22 @@
     </message>
     <message>
         <source>Only one of a dial target, --answer, --hangup, --show, --quit or --minimized may be given.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Examples:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>A second invocation forwards its command to the running instance.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Source code and bug reports: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tincan %1 - lightweight SIP softphone for Linux</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -162,6 +174,61 @@
     <name>tincan::SingleInstance</name>
     <message>
         <source>The running Tincan instance did not respond.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>tincan::ui::AboutDialog</name>
+    <message>
+        <source>About Tincan</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>unknown</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tincan %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>A lightweight SIP softphone for Linux.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>PJSIP %1 &amp;middot; Qt %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tincan is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License, version 3 or (at your option) any later version (%1). It comes with ABSOLUTELY NO WARRANTY.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Source code: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>PJSIP (%1), GPL-2.0-or-later</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Qt 6 (%1), LGPL-3.0</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>QtKeychain, BSD-3-Clause</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Opus audio codec, BSD-3-Clause</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Built with</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Inspired by MicroSIP (%1); not affiliated.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -870,6 +937,10 @@
     </message>
     <message>
         <source>No account configured</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>About Tincan</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

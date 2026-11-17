@@ -83,6 +83,8 @@ private slots:
         QVERIFY(result.helpRequested);
         QVERIFY(result.helpText.contains(QStringLiteral("--answer")));
         QVERIFY(!result.helpText.contains(QStringLiteral("--screenshot")));
+        QVERIFY(result.helpText.contains(QStringLiteral("Examples:")));
+        QVERIFY(result.helpText.contains(QStringLiteral("https://github.com/martinsaul/tincan")));
     }
 
     void rejectsBadInput_data() {

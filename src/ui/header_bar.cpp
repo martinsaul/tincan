@@ -135,6 +135,9 @@ QMenu *HeaderBar::buildMenu(QWidget *parent) {
     settingsAction_ = menu->addAction(Icons::settings(), tr("Settings..."));
     settingsAction_->setShortcut(QKeySequence::Preferences);
     connect(settingsAction_, &QAction::triggered, this, &HeaderBar::settingsRequested);
+    aboutAction_ = menu->addAction(tr("About Tincan"));
+    aboutAction_->setObjectName(QStringLiteral("aboutAction"));
+    connect(aboutAction_, &QAction::triggered, this, &HeaderBar::aboutRequested);
 
     menu->addSeparator();
     quitAction_ = menu->addAction(tr("Quit"));
@@ -147,6 +150,7 @@ QComboBox *HeaderBar::presenceCombo() const { return presenceCombo_; }
 QLabel *HeaderBar::dndBadge() const { return dndBadge_; }
 QAction *HeaderBar::dndAction() const { return dndAction_; }
 QAction *HeaderBar::settingsAction() const { return settingsAction_; }
+QAction *HeaderBar::aboutAction() const { return aboutAction_; }
 QAction *HeaderBar::quitAction() const { return quitAction_; }
 
 void HeaderBar::refreshAccountsCombo() {

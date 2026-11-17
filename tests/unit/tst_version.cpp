@@ -12,6 +12,10 @@ private slots:
     void returnsConfiguredProjectVersion() {
         QCOMPARE(tincan::Version::string(), QStringLiteral("0.1.0"));
     }
+
+    void exposesPublicSourceRepository() {
+        QCOMPARE(tincan::Version::sourceUrl(), QStringLiteral("https://github.com/martinsaul/tincan"));
+    }
 };
 
 QTEST_APPLESS_MAIN(TestVersion)

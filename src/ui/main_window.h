@@ -38,6 +38,10 @@ public:
                ContactService &contactService, HistoryService &historyService,
                MessageService &messageService, SettingsStore &settingsStore,
                ISecretStore &secretStore, QWidget *parent = nullptr);
+    ~MainWindow() override;
+
+    // Shown in the About dialog; the sip layer is not visible from ui.
+    void setPjsipVersion(const QString &version);
 
     DialpadWidget *dialpad() const;
     CallPanel *callPanel() const;
@@ -48,9 +52,11 @@ public:
     QComboBox *presenceCombo() const;
     QLabel *dndBadge() const;
     QAction *dndAction() const;
+    QAction *aboutAction() const;
 
 public slots:
     void openSettingsDialog();
+    void openAboutDialog();
     void requestQuit();
     void bringToFront();
     void showHistoryTab();
@@ -72,6 +78,9 @@ private:
     void onDialRequested(const QString &text);
     void onDialOnAccountRequested(const QString &target, const QString &accountId);
     void showErrorBanner(const QString &message);
+    void restoreWindowState();
+    void saveWindowState();
+    void onInCallKeypadShown(bool shown);
 
     AccountService &accountService_;
     CallService &callService_;
@@ -83,6 +92,7 @@ private:
     ISecretStore &secretStore_;
 
     bool quitting_ = false;
+    QString pjsipVersion_;
     int historyTabIndex_ = -1;
     int messagesTabIndex_ = -1;
 

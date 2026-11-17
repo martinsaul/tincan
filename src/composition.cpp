@@ -5,6 +5,7 @@
 
 #include "core/engine_config.h"
 #include "core/version.h"
+#include "sip/pj_version.h"
 #include "ui/messages_view.h"
 #include "ui/secret_fallback_prompt.h"
 
@@ -54,6 +55,7 @@ Composition::Composition(const QString &settingsPath, const QString &databasePat
     eventRouter_.addListener(&callService_);
     eventRouter_.addListener(&contactService_);
     eventRouter_.addListener(&messageService_);
+    mainWindow_.setPjsipVersion(QString::fromStdString(sip::PjVersion::string()));
     QObject::connect(&mainWindow_, &ui::MainWindow::closedWithoutTray, &mainWindow_,
                      []() { QCoreApplication::quit(); });
     wireDesktopIntegration();

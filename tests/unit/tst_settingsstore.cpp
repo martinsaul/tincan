@@ -195,6 +195,21 @@ private slots:
         QCOMPARE(loaded.recordingsDir, customRecDir);
         QCOMPARE(loaded.autoRecord, true);
     }
+
+    void roundTripsWindowState() {
+        QTemporaryDir tempDir;
+        QVERIFY(tempDir.isValid());
+        const QString iniPath = tempDir.filePath(QStringLiteral("tincan.ini"));
+        {
+            tincan::SettingsStore fresh(iniPath);
+            QVERIFY(fresh.windowState().geometry.isEmpty());
+            QCOMPARE(fresh.windowState().lastTab, 0);
+            fresh.setWindowState(tincan::WindowState{QByteArray("\x01\x02geometry"), 2});
+        }
+        tincan::SettingsStore reader(iniPath);
+        QCOMPARE(reader.windowState().geometry, QByteArray("\x01\x02geometry"));
+        QCOMPARE(reader.windowState().lastTab, 2);
+    }
 };
 
 QTEST_GUILESS_MAIN(TestSettingsStore)
