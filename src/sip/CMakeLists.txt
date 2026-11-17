@@ -13,6 +13,7 @@ add_library(tincan_sip STATIC
     sip_call.cpp
     sip_endpoint.cpp
     sip_log_writer.cpp
+    tone_player.cpp
 )
 
 set_target_properties(tincan_sip PROPERTIES

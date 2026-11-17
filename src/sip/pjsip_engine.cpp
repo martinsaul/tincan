@@ -10,6 +10,7 @@
 #include "sip/sip_account.h"
 #include "sip/sip_call.h"
 #include "sip/sip_endpoint.h"
+#include "sip/tone_player.h"
 
 #include <QCoreApplication>
 #include <QElapsedTimer>
@@ -38,7 +39,9 @@ pj::CallOpParam makeAudioCallOpParam() {
 
 PjsipEngine::PjsipEngine(ISipEvents &events)
     : events_(events), marshaller_(std::make_unique<EventMarshaller>()),
-      endpoint_(std::make_unique<SipEndpoint>()), calls_(std::make_unique<CallRegistry>()) {}
+      endpoint_(std::make_unique<SipEndpoint>()),
+      tonePlayer_(std::make_unique<TonePlayer>(*endpoint_)),
+      calls_(std::make_unique<CallRegistry>()) {}
 
 PjsipEngine::~PjsipEngine() {
     shutdown();
@@ -53,6 +56,7 @@ void PjsipEngine::shutdown() {
         return;
     }
 
+    tonePlayer_->stopTone();
     endpoint_->hangupAllCalls();
 
     QElapsedTimer timer;
@@ -212,6 +216,38 @@ bool PjsipEngine::hangup(int callId) {
 
 QList<CallInfo> PjsipEngine::calls() const {
     return calls_->snapshots();
+}
+
+QList<AudioDevice> PjsipEngine::audioDevices() const {
+    return endpoint_->audioDevices();
+}
+
+bool PjsipEngine::setAudioDevices(int captureIndex, int playbackIndex) {
+    return endpoint_->setAudioDevices(captureIndex, playbackIndex);
+}
+
+void PjsipEngine::setRingDevice(int playbackIndex) {
+    tonePlayer_->setRingDevice(playbackIndex);
+}
+
+QList<CodecInfo> PjsipEngine::codecs() const {
+    return endpoint_->codecs();
+}
+
+bool PjsipEngine::setCodecPriority(const QString &id, int priority) {
+    return endpoint_->setCodecPriority(id, priority);
+}
+
+bool PjsipEngine::setEchoCanceller(bool enabled, int tailMs) {
+    return endpoint_->setEchoCanceller(enabled, tailMs);
+}
+
+void PjsipEngine::startTone(Tone tone, const QString &customWav) {
+    tonePlayer_->startTone(tone, customWav);
+}
+
+void PjsipEngine::stopTone() {
+    tonePlayer_->stopTone();
 }
 
 void PjsipEngine::handleIncomingCallOnMainThread(std::unique_ptr<SipCall> call,

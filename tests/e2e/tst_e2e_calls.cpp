@@ -149,6 +149,49 @@ private slots:
         QVERIFY(engine_->calls().isEmpty());
     }
 
+    void audioCodecsAndTonesUnderNullAudio() {
+        const auto devices = engine_->audioDevices();
+        for (const tincan::AudioDevice &dev : devices) {
+            QVERIFY(dev.index >= 0);
+        }
+        QVERIFY(engine_->setAudioDevices(-1, -1));
+        engine_->setRingDevice(-1);
+        QVERIFY(engine_->setEchoCanceller(true, 200));
+        QVERIFY(engine_->setEchoCanceller(false, 0));
+
+        const auto initialCodecs = engine_->codecs();
+        QVERIFY(!initialCodecs.isEmpty());
+        int originalPcmuPrio = -1;
+        for (const tincan::CodecInfo &c : initialCodecs) {
+            if (c.id == QStringLiteral("PCMU/8000/1")) {
+                originalPcmuPrio = c.priority;
+                break;
+            }
+        }
+        QVERIFY2(originalPcmuPrio >= 0, "PCMU/8000/1 codec must be present");
+
+        QVERIFY(engine_->setCodecPriority(QStringLiteral("PCMU/8000/1"), 199));
+        int updatedPrio = -1;
+        for (const tincan::CodecInfo &c : engine_->codecs()) {
+            if (c.id == QStringLiteral("PCMU/8000/1")) {
+                updatedPrio = c.priority;
+                break;
+            }
+        }
+        QCOMPARE(updatedPrio, 199);
+        QVERIFY(engine_->setCodecPriority(QStringLiteral("PCMU/8000/1"), originalPcmuPrio));
+
+        engine_->startTone(tincan::Tone::Ringing);
+        QTest::qWait(50);
+        engine_->startTone(tincan::Tone::Ringback);
+        QTest::qWait(50);
+        engine_->startTone(tincan::Tone::CallWaiting);
+        QTest::qWait(50);
+        engine_->startTone(tincan::Tone::Ringing, QStringLiteral("/nonexistent/ring.wav"));
+        QTest::qWait(50);
+        engine_->stopTone();
+    }
+
 private:
     std::unique_ptr<tincan::test::RecordingEvents> events_;
     std::unique_ptr<tincan::sip::PjsipEngine> engine_;

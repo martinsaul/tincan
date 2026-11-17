@@ -7,7 +7,14 @@ add_subdirectory(app)
 add_subdirectory(ui)
 
 add_executable(tincan
+    composition.cpp
     main.cpp
+    posix_signal_watcher.h
+    posix_signal_watcher.cpp
+)
+
+set_target_properties(tincan PROPERTIES
+    AUTOMOC ON
 )
 
 target_link_libraries(tincan PRIVATE

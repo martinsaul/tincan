@@ -22,6 +22,11 @@ struct CallInfo {
     int lastStatusCode = 0;
     QString lastReason;
     QDateTime connectedAt;
+
+    bool isIncomingRinging() const {
+        return direction == CallDirection::Incoming &&
+               (state == CallState::Incoming || state == CallState::Early);
+    }
 };
 
 } // namespace tincan

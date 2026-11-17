@@ -1,0 +1,11 @@
+<RCC>
+    <qresource prefix="/icons">
+        <file alias="tincan.svg">icons/tincan.svg</file>
+        <file alias="call-start.svg">icons/call-start.svg</file>
+        <file alias="call-stop.svg">icons/call-stop.svg</file>
+        <file alias="audio-input-microphone.svg">icons/audio-input-microphone.svg</file>
+        <file alias="audio-speakers.svg">icons/audio-speakers.svg</file>
+        <file alias="preferences-system.svg">icons/preferences-system.svg</file>
+        <file alias="edit-clear.svg">icons/edit-clear.svg</file>
+    </qresource>
+</RCC>

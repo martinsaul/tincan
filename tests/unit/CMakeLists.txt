@@ -22,3 +22,23 @@ tincan_add_unit_test(tst_accountconfig tst_accountconfig.cpp tincan_core)
 tincan_add_unit_test(tst_accountconfigmapper tst_accountconfigmapper.cpp tincan_sip Tincan::pjproject)
 tincan_add_unit_test(tst_apppaths tst_apppaths.cpp tincan_app)
 tincan_add_unit_test(tst_pjversion tst_pjversion.cpp tincan_sip)
+tincan_add_unit_test(tst_settingsstore tst_settingsstore.cpp tincan_app)
+
+foreach(svc_test IN ITEMS tst_accountservice tst_callservice)
+    add_executable(${svc_test}
+        ${svc_test}.cpp
+        "${CMAKE_SOURCE_DIR}/tests/fakes/fake_sip_engine.cpp"
+    )
+    set_target_properties(${svc_test} PROPERTIES
+        AUTOMOC ON
+    )
+    target_include_directories(${svc_test} PRIVATE
+        "${CMAKE_SOURCE_DIR}/tests/fakes"
+    )
+    target_link_libraries(${svc_test} PRIVATE
+        Qt6::Test
+        tincan_app
+    )
+    tincan_apply_warnings(${svc_test})
+    add_test(NAME ${svc_test} COMMAND ${svc_test})
+endforeach()

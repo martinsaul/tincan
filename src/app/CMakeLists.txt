@@ -2,7 +2,19 @@
 # Copyright (C) 2026 Tincan contributors
 
 add_library(tincan_app STATIC
+    account_service.h
+    account_service.cpp
     app_paths.cpp
+    audio_service.h
+    audio_service.cpp
+    call_service.h
+    call_service.cpp
+    secret_store.cpp
+    settings_store.cpp
+)
+
+set_target_properties(tincan_app PROPERTIES
+    AUTOMOC ON
 )
 
 target_link_libraries(tincan_app

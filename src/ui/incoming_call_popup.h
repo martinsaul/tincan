@@ -1,0 +1,37 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Tincan contributors
+
+#pragma once
+
+#include "app/call_service.h"
+
+#include <QFrame>
+
+class QLabel;
+class QPushButton;
+
+namespace tincan::ui {
+
+class IncomingCallPopup : public QFrame {
+    Q_OBJECT
+
+public:
+    explicit IncomingCallPopup(CallService &callService, QWidget *parent = nullptr);
+
+    int currentCallId() const;
+
+private:
+    void onIncomingCall(const CallInfo &info);
+    void onCallChangedOrRemoved();
+    void showForCall(const CallInfo &info);
+    void positionBottomRight();
+
+    CallService &callService_;
+    int currentCallId_ = -1;
+    QLabel *titleLabel_ = nullptr;
+    QLabel *callerLabel_ = nullptr;
+    QPushButton *answerButton_ = nullptr;
+    QPushButton *rejectButton_ = nullptr;
+};
+
+} // namespace tincan::ui

@@ -18,6 +18,7 @@ class EventMarshaller;
 class SipAccount;
 class SipCall;
 class SipEndpoint;
+class TonePlayer;
 
 class PjsipEngine : public ISipEngine {
 public:
@@ -40,6 +41,17 @@ public:
     bool hangup(int callId) override;
     QList<CallInfo> calls() const override;
 
+    QList<AudioDevice> audioDevices() const override;
+    bool setAudioDevices(int captureIndex, int playbackIndex) override;
+    void setRingDevice(int playbackIndex) override;
+
+    QList<CodecInfo> codecs() const override;
+    bool setCodecPriority(const QString &id, int priority) override;
+    bool setEchoCanceller(bool enabled, int tailMs) override;
+
+    void startTone(Tone tone, const QString &customWav = {}) override;
+    void stopTone() override;
+
 private:
     void handleIncomingCallOnMainThread(std::unique_ptr<SipCall> call, const CallInfo &info);
     void handleCallStateOnMainThread(const SipCall *call, const CallInfo &info);
@@ -47,6 +59,7 @@ private:
     ISipEvents &events_;
     std::unique_ptr<EventMarshaller> marshaller_;
     std::unique_ptr<SipEndpoint> endpoint_;
+    std::unique_ptr<TonePlayer> tonePlayer_;
     std::unique_ptr<CallRegistry> calls_;
     std::map<QString, std::unique_ptr<SipAccount>> accounts_;
 };
