@@ -12,6 +12,8 @@
 #include <QScreen>
 #include <QVBoxLayout>
 
+#include <utility>
+
 namespace tincan::ui {
 
 namespace {
@@ -93,6 +95,10 @@ int IncomingCallPopup::currentCallId() const { return currentCallId_; }
 
 QString IncomingCallPopup::callerText() const { return callerLabel_->text(); }
 
+void IncomingCallPopup::setShowPredicate(std::function<bool()> predicate) {
+    showPredicate_ = std::move(predicate);
+}
+
 void IncomingCallPopup::onIncomingCall(const CallInfo &info) { showForCall(info); }
 
 void IncomingCallPopup::onCallChangedOrRemoved() {
@@ -114,6 +120,10 @@ void IncomingCallPopup::onCallChangedOrRemoved() {
 
 void IncomingCallPopup::showForCall(const CallInfo &info) {
     currentCallId_ = info.callId;
+    if (showPredicate_ && !showPredicate_()) {
+        hide();
+        return;
+    }
     callerLabel_->setText(formatCaller(info));
     adjustSize();
     positionBottomRight();

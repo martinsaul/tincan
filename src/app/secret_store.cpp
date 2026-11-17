@@ -13,12 +13,20 @@ namespace tincan {
 KeychainSecretStore::KeychainSecretStore(QString serviceName)
     : serviceName_(std::move(serviceName)) {}
 
+bool KeychainSecretStore::backendUnavailable() const { return backendUnavailable_; }
+
+void KeychainSecretStore::noteError(int keychainError) {
+    backendUnavailable_ = keychainError == QKeychain::NoBackendAvailable ||
+                          keychainError == QKeychain::OtherError;
+}
+
 void KeychainSecretStore::readPassword(const QString &accountId, ReadCallback callback) {
     auto *job = new QKeychain::ReadPasswordJob(serviceName_);
     job->setAutoDelete(true);
     job->setKey(accountId);
     QObject::connect(job, &QKeychain::Job::finished, job,
-                     [job, cb = std::move(callback)](QKeychain::Job *) {
+                     [this, job, cb = std::move(callback)](QKeychain::Job *) {
+                         noteError(job->error());
                          if (!cb) {
                              return;
                          }
@@ -45,7 +53,8 @@ void KeychainSecretStore::writePassword(const QString &accountId, const QString 
     job->setKey(accountId);
     job->setTextData(password);
     QObject::connect(job, &QKeychain::Job::finished, job,
-                     [job, cb = std::move(callback)](QKeychain::Job *) {
+                     [this, job, cb = std::move(callback)](QKeychain::Job *) {
+                         noteError(job->error());
                          if (!cb) {
                              return;
                          }
@@ -60,7 +69,8 @@ void KeychainSecretStore::deletePassword(const QString &accountId, DeleteCallbac
     job->setAutoDelete(true);
     job->setKey(accountId);
     QObject::connect(job, &QKeychain::Job::finished, job,
-                     [job, cb = std::move(callback)](QKeychain::Job *) {
+                     [this, job, cb = std::move(callback)](QKeychain::Job *) {
+                         noteError(job->error());
                          if (!cb) {
                              return;
                          }

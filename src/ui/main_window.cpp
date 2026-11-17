@@ -138,6 +138,20 @@ void MainWindow::openSettingsDialog() {
     SettingsDialog dlg(accountService_, audioService_, settingsStore_, secretStore_, this);
     if (dlg.exec() == QDialog::Accepted) {
         callService_.reloadSettings();
+        emit settingsApplied();
+    }
+}
+
+void MainWindow::bringToFront() {
+    showNormal();
+    raise();
+    activateWindow();
+}
+
+void MainWindow::showHistoryTab() {
+    bringToFront();
+    if (historyTabIndex_ >= 0) {
+        tabs_->setCurrentIndex(historyTabIndex_);
     }
 }
 
@@ -189,6 +203,8 @@ void MainWindow::refreshHistoryTabBadge() {
     const int missed = historyService_.unseenMissedCount();
     tabs_->setTabText(historyTabIndex_,
                       missed > 0 ? tr("History (%1)").arg(missed) : tr("History"));
+    tabs_->setTabToolTip(historyTabIndex_,
+                         missed > 0 ? tr("%n missed call(s)", nullptr, missed) : QString{});
 }
 
 void MainWindow::refreshMessagesTabBadge() {

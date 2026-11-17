@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 Tincan contributors
 
+#include "app/command_line.h"
+#include "app/single_instance.h"
 #include "composition.h"
 #include "core/version.h"
 #include "posix_signal_watcher.h"
@@ -8,12 +10,14 @@
 
 #include <QApplication>
 #include <QByteArray>
-#include <QCommandLineOption>
-#include <QCommandLineParser>
 #include <QCoreApplication>
+#include <QLibraryInfo>
+#include <QLocale>
 #include <QTemporaryDir>
+#include <QTranslator>
 
 #include <iostream>
+#include <optional>
 
 namespace {
 
@@ -35,35 +39,73 @@ void ensurePlatformForHeadlessCli(int argc, char *argv[]) {
     }
 }
 
-struct CliOptions {
-    bool version = false;
-    bool nullAudio = false;
-    QString screenshotDir;
-};
+void installTranslations(QTranslator &qtTranslator, QTranslator &appTranslator) {
+    const QLocale locale;
+    if (qtTranslator.load(locale, QStringLiteral("qtbase"), QStringLiteral("_"),
+                          QLibraryInfo::path(QLibraryInfo::TranslationsPath))) {
+        QCoreApplication::installTranslator(&qtTranslator);
+    }
+    if (appTranslator.load(locale, QStringLiteral("tincan"), QStringLiteral("_"),
+                           QStringLiteral(":/i18n"))) {
+        QCoreApplication::installTranslator(&appTranslator);
+    }
+}
 
-CliOptions parseCommandLine(const QCoreApplication &app) {
-    QCommandLineParser parser;
-    parser.setApplicationDescription(QStringLiteral("Lightweight SIP softphone for Linux"));
-    parser.addHelpOption();
-    const QCommandLineOption versionOpt(
-        {QStringLiteral("v"), QStringLiteral("version")},
-        QStringLiteral("Display Tincan and PJSIP version information and exit."));
-    const QCommandLineOption nullAudioOpt(
-        QStringLiteral("null-audio"),
-        QStringLiteral("Use the PJSIP null audio device instead of hardware audio."));
-    QCommandLineOption screenshotOpt(
-        QStringLiteral("screenshot"),
-        QStringLiteral("Render main and settings windows to <dir> and exit."),
-        QStringLiteral("dir"));
-    screenshotOpt.setFlags(QCommandLineOption::HiddenFromHelp);
+// Returns an exit code when the process should stop before starting the UI.
+std::optional<int> handleInformationalOptions(const tincan::CommandLineParseResult &parsed) {
+    if (!parsed.ok) {
+        std::cerr << parsed.errorText.toStdString() << '\n';
+        return 2;
+    }
+    if (parsed.helpRequested) {
+        std::cout << parsed.helpText.toStdString();
+        return 0;
+    }
+    if (parsed.command.version) {
+        std::cout << "Tincan " << tincan::Version::string().toStdString() << " (PJSIP "
+                  << tincan::sip::PjVersion::string() << ")\n";
+        return 0;
+    }
+    return std::nullopt;
+}
 
-    parser.addOption(versionOpt);
-    parser.addOption(nullAudioOpt);
-    parser.addOption(screenshotOpt);
-    parser.process(app);
+int runScreenshots(const tincan::CommandLine &cmd) {
+    QTemporaryDir tempDir;
+    tincan::Composition composition(tempDir.filePath(QStringLiteral("tincan.ini")),
+                                    QStringLiteral(":memory:"));
+    QString engineError;
+    if (!composition.start(cmd.nullAudio, &engineError)) {
+        std::cerr << "Failed to start SIP engine: " << engineError.toStdString() << '\n';
+        return 1;
+    }
+    const bool ok = composition.saveScreenshots(cmd.screenshotDir);
+    composition.shutdown();
+    return ok ? 0 : 1;
+}
 
-    return CliOptions{parser.isSet(versionOpt), parser.isSet(nullAudioOpt),
-                      parser.value(screenshotOpt)};
+int runPrimary(tincan::SingleInstance &instance, const tincan::CommandLine &cmd) {
+    tincan::PosixSignalWatcher signalWatcher;
+    QObject::connect(&signalWatcher, &tincan::PosixSignalWatcher::terminationRequested,
+                     qApp, &QCoreApplication::quit);
+
+    tincan::Composition composition;
+    QString engineError;
+    if (!composition.start(cmd.nullAudio, &engineError)) {
+        std::cerr << "Failed to start SIP engine: " << engineError.toStdString() << '\n';
+        return 1;
+    }
+    composition.enableInteractivePrompts();
+    QObject::connect(qApp, &QCoreApplication::aboutToQuit, qApp,
+                     [&composition]() { composition.shutdown(); });
+    QObject::connect(&instance, &tincan::SingleInstance::commandReceived, qApp,
+                     [&composition](const tincan::CommandLine &forwarded) {
+                         composition.handleForwardedCommand(forwarded);
+                     });
+    composition.applyStartupCommand(cmd);
+
+    const int rc = QApplication::exec();
+    composition.shutdown();
+    return rc;
 }
 
 } // namespace
@@ -76,45 +118,34 @@ int main(int argc, char *argv[]) {
     QCoreApplication::setOrganizationName(QStringLiteral("Tincan"));
     QCoreApplication::setApplicationName(QStringLiteral("Tincan"));
     QCoreApplication::setApplicationVersion(tincan::Version::string());
+    QGuiApplication::setDesktopFileName(QStringLiteral("io.github.martinsaul.Tincan"));
 
-    const CliOptions cli = parseCommandLine(app);
-    if (cli.version) {
-        std::cout << "Tincan " << tincan::Version::string().toStdString() << " (PJSIP "
-                  << tincan::sip::PjVersion::string() << ")\n";
+    QTranslator qtTranslator;
+    QTranslator appTranslator;
+    installTranslations(qtTranslator, appTranslator);
+
+    const tincan::CommandLineParseResult parsed =
+        tincan::parseCommandLine(QCoreApplication::arguments());
+    if (const std::optional<int> rc = handleInformationalOptions(parsed)) {
+        return *rc;
+    }
+    const tincan::CommandLine &cmd = parsed.command;
+    if (!cmd.screenshotDir.isEmpty()) {
+        return runScreenshots(cmd);
+    }
+
+    tincan::SingleInstance instance;
+    switch (instance.start(cmd)) {
+    case tincan::SingleInstance::Role::Forwarded:
         return 0;
-    }
-
-    tincan::PosixSignalWatcher signalWatcher;
-    QObject::connect(&signalWatcher, &tincan::PosixSignalWatcher::terminationRequested, &app,
-                     &QCoreApplication::quit);
-
-    QTemporaryDir screenshotTempDir;
-    const QString settingsPath = cli.screenshotDir.isEmpty()
-                                     ? QString{}
-                                     : screenshotTempDir.filePath(QStringLiteral("tincan.ini"));
-    const QString dbPath =
-        cli.screenshotDir.isEmpty() ? QString{} : QStringLiteral(":memory:");
-
-    tincan::Composition composition(settingsPath, dbPath);
-    QString engineError;
-    if (!composition.start(cli.nullAudio, &engineError)) {
-        std::cerr << "Failed to start SIP engine: " << engineError.toStdString() << '\n';
+    case tincan::SingleInstance::Role::Failed:
+        std::cerr << "Tincan: " << instance.errorString().toStdString() << '\n';
         return 1;
+    case tincan::SingleInstance::Role::Primary:
+        break;
     }
-    QObject::connect(&app, &QCoreApplication::aboutToQuit, &app,
-                     [&composition]() { composition.shutdown(); });
-
-    if (!cli.screenshotDir.isEmpty()) {
-        const bool ok = composition.saveScreenshots(cli.screenshotDir);
-        composition.shutdown();
-        return ok ? 0 : 1;
+    if (cmd.action == tincan::CommandLine::Action::Quit) {
+        return 0; // nothing is running, so there is nothing to quit
     }
-
-    if (composition.shouldShowMainWindowOnStart()) {
-        composition.showMainWindow();
-    }
-
-    const int rc = QApplication::exec();
-    composition.shutdown();
-    return rc;
+    return runPrimary(instance, cmd);
 }

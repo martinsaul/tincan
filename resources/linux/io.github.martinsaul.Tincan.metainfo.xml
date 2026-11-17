@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: CC0-1.0 -->
+<component type="desktop-application">
+  <id>io.github.martinsaul.Tincan</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>AGPL-3.0-or-later</project_license>
+  <name>Tincan</name>
+  <summary>Small and fast SIP softphone</summary>
+  <developer id="io.github.martinsaul">
+    <name>Tincan contributors</name>
+  </developer>
+  <description>
+    <p>
+      Tincan is a lightweight SIP softphone for the Linux desktop: a compact
+      window with a dialpad, quick answer and hang-up, and very little in the way.
+    </p>
+    <p>
+      It supports multiple SIP accounts, several simultaneous calls with hold,
+      transfer, local conferencing and recording, contacts with presence,
+      call history, SIP MESSAGE chat, desktop notifications and handling of
+      sip:, tel: and callto: links.
+    </p>
+    <p>
+      Tincan is inspired by the MicroSIP softphone for Windows. It is an
+      independent project and is not affiliated with or endorsed by MicroSIP.
+    </p>
+  </description>
+  <launchable type="desktop-id">io.github.martinsaul.Tincan.desktop</launchable>
+  <url type="homepage">https://github.com/martinsaul/tincan</url>
+  <categories>
+    <category>Network</category>
+    <category>Telephony</category>
+  </categories>
+  <keywords>
+    <keyword>SIP</keyword>
+    <keyword>VoIP</keyword>
+    <keyword>softphone</keyword>
+  </keywords>
+  <provides>
+    <binary>tincan</binary>
+    <mediatype>x-scheme-handler/sip</mediatype>
+    <mediatype>x-scheme-handler/sips</mediatype>
+    <mediatype>x-scheme-handler/tel</mediatype>
+    <mediatype>x-scheme-handler/callto</mediatype>
+  </provides>
+  <content_rating type="oars-1.1">
+    <content_attribute id="social-audio">intense</content_attribute>
+    <content_attribute id="social-chat">intense</content_attribute>
+  </content_rating>
+  <releases>
+    <release version="0.1.0" date="2026-11-16">
+      <description>
+        <p>First release.</p>
+      </description>
+    </release>
+  </releases>
+</component>

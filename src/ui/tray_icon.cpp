@@ -112,7 +112,12 @@ void TrayIcon::onActivated(QSystemTrayIcon::ActivationReason reason) {
     }
 }
 
+void TrayIcon::setBuiltInNotificationsEnabled(bool enabled) { builtInNotifications_ = enabled; }
+
 void TrayIcon::onMissedCall(const CallInfo &info) {
+    if (!builtInNotifications_) {
+        return;
+    }
     QString caller = info.remoteDisplayName.trimmed();
     if (contactService_ != nullptr) {
         const QString resolved = contactService_->resolveDisplayName(info.remoteUri);
@@ -123,10 +128,13 @@ void TrayIcon::onMissedCall(const CallInfo &info) {
     if (caller.isEmpty()) {
         caller = info.remoteUri;
     }
-    postNotification(tr("Missed call"), tr("Missed call from %1").arg(caller));
+    showNotification(tr("Missed call"), tr("Missed call from %1").arg(caller));
 }
 
 void TrayIcon::onIncomingMessage(const ChatMessage &message, const QString &fromName) {
+    if (!builtInNotifications_) {
+        return;
+    }
     if (mainWindow_.messagesView() != nullptr &&
         mainWindow_.messagesView()->isPeerChatVisible(message.peerUri)) {
         return;
@@ -138,10 +146,10 @@ void TrayIcon::onIncomingMessage(const ChatMessage &message, const QString &from
     if (sender.isEmpty()) {
         sender = fromName.trimmed().isEmpty() ? message.peerUri : fromName.trimmed();
     }
-    postNotification(tr("New message from %1").arg(sender), message.body);
+    showNotification(tr("New message from %1").arg(sender), message.body);
 }
 
-void TrayIcon::postNotification(const QString &title, const QString &body) {
+void TrayIcon::showNotification(const QString &title, const QString &body) {
     lastNotificationTitle_ = title;
     lastNotificationBody_ = body;
     tray_.showMessage(title, body, Icons::appIcon());

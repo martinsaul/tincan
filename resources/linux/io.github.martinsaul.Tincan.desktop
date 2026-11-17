@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Tincan
+GenericName=SIP Phone
+Comment=Make and receive SIP voice calls
+Exec=tincan %u
+Icon=io.github.martinsaul.Tincan
+Terminal=false
+StartupNotify=true
+StartupWMClass=tincan
+Categories=Network;Telephony;
+Keywords=SIP;VoIP;phone;softphone;call;telephony;
+MimeType=x-scheme-handler/sip;x-scheme-handler/sips;x-scheme-handler/tel;x-scheme-handler/callto;

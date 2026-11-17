@@ -16,7 +16,7 @@ ui  ──►  app  ──►  core  ◄──  sip
 
 - `core` (`tincan_core`): Plain C++20 value types and interfaces (`Qt6::Core` only; no Qt Widgets, no PJSIP).
 - `sip` (`tincan_sip`): The **only** layer permitted to include PJSIP headers; implements `core` SIP interfaces via `pjsua2`.
-- `app` (`tincan_app`): Application services, repositories, and policies (`Qt6::Core`, `Qt6::Sql`, `Qt6::Network`, `Qt6Keychain`; no Qt Widgets, no PJSIP).
+- `app` (`tincan_app`): Application services, repositories, and policies (`Qt6::Core`, `Qt6::Sql`, `Qt6::Network`, `Qt6::DBus`, `Qt6Keychain`; no Qt Widgets, no PJSIP).
 - `ui` (`tincan_ui`): Qt 6 Widgets presentation layer (`Qt6::Widgets`, `Qt6::Svg`).
 
 Dependencies must never point upward. `src/main.cpp` serves as the composition root using constructor injection; do not introduce singletons or mutable globals.
@@ -33,6 +33,29 @@ Dependencies must never point upward. `src/main.cpp` serves as the composition r
   // SPDX-License-Identifier: AGPL-3.0-or-later
   // Copyright (C) 2026 Tincan contributors
   ```
+
+## Translations
+
+User-visible strings go through `tr()` (or `Q_DECLARE_TR_FUNCTIONS` /
+`QCoreApplication::translate()` outside `QObject` classes). Catalogues live in
+`translations/` and are compiled into the binary under `:/i18n`; Tincan loads
+the one matching the system locale at start-up.
+
+- `tincan_en.ts` holds only plural forms (`tr("%n ...", nullptr, n)`), because
+  English source strings need no other translation.
+- To refresh every catalogue after changing strings, run:
+  ```sh
+  cmake --build build --target update_translations
+  ```
+- To add a language (for example German, `de`):
+  1. Add `"${PROJECT_SOURCE_DIR}/translations/tincan_de.ts"` to `TS_FILES` in
+     the `qt_add_translations()` call in `src/CMakeLists.txt`.
+  2. Run the `update_translations` target above; it creates the `.ts` file.
+  3. Translate it with Qt Linguist (`linguist translations/tincan_de.ts`) and
+     rebuild. Test with e.g. `LANG=de_DE.UTF-8 tincan`.
+
+Translators must work from Tincan's own source strings only (see the clean-room
+rule above).
 
 ## Tests
 

@@ -9,6 +9,7 @@
 #include <QWidget>
 
 class QCheckBox;
+class QComboBox;
 class QGroupBox;
 class QLineEdit;
 class QPushButton;
@@ -28,6 +29,7 @@ public:
 private:
     QGroupBox *buildDesktopGroup();
     QGroupBox *buildRingtoneGroup();
+    QGroupBox *buildAlertGroup();
     void browseRingtone();
     void togglePreview();
 
@@ -37,6 +39,7 @@ private:
     QCheckBox *startMinimizedCheck_ = nullptr;
     QCheckBox *closeToTrayCheck_ = nullptr;
     QCheckBox *autostartCheck_ = nullptr;
+    QComboBox *incomingAlertCombo_ = nullptr;
     QLineEdit *ringtoneEdit_ = nullptr;
     QPushButton *browseButton_ = nullptr;
     QPushButton *testButton_ = nullptr;

@@ -35,6 +35,11 @@ public:
     const QString &lastNotificationTitle() const;
     const QString &lastNotificationBody() const;
 
+    // When false, missed-call and message notifications are left to an
+    // external Notifier, which calls showNotification() only as a fallback.
+    void setBuiltInNotificationsEnabled(bool enabled);
+    void showNotification(const QString &title, const QString &body);
+
 private:
     void refreshRegistrationState();
     void refreshDndAction(bool enabled);
@@ -42,7 +47,6 @@ private:
     void onActivated(QSystemTrayIcon::ActivationReason reason);
     void onMissedCall(const CallInfo &info);
     void onIncomingMessage(const ChatMessage &message, const QString &fromName);
-    void postNotification(const QString &title, const QString &body);
 
     AccountService &accountService_;
     CallService &callService_;
@@ -54,6 +58,7 @@ private:
     QSystemTrayIcon tray_;
     QString lastNotificationTitle_;
     QString lastNotificationBody_;
+    bool builtInNotifications_ = true;
 };
 
 } // namespace tincan::ui

@@ -30,13 +30,20 @@ tincan_add_unit_test(tst_settingsstore tst_settingsstore.cpp tincan_app)
 tincan_add_unit_test(tst_database_migrations tst_database_migrations.cpp tincan_app)
 tincan_add_unit_test(tst_repositories tst_repositories.cpp tincan_app)
 tincan_add_unit_test(tst_contactcsv tst_contactcsv.cpp tincan_app)
+tincan_add_unit_test(tst_uriparser tst_uriparser.cpp tincan_app)
+tincan_add_unit_test(tst_commandline tst_commandline.cpp tincan_app)
+tincan_add_unit_test(tst_singleinstance tst_singleinstance.cpp tincan_app)
+tincan_add_unit_test(tst_autostart tst_autostart.cpp tincan_app)
+tincan_add_unit_test(tst_configsecretstore tst_configsecretstore.cpp tincan_app)
 
 foreach(svc_test IN ITEMS
         tst_accountservice
         tst_callservice
         tst_historyservice
         tst_contactservice
-        tst_messageservice)
+        tst_messageservice
+        tst_notifier
+        tst_commanddispatcher)
     add_executable(${svc_test}
         ${svc_test}.cpp
         "${CMAKE_SOURCE_DIR}/tests/fakes/fake_sip_engine.cpp"

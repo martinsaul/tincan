@@ -4,6 +4,7 @@
 #include "ui/general_page.h"
 
 #include <QCheckBox>
+#include <QComboBox>
 #include <QFileDialog>
 #include <QGroupBox>
 #include <QHBoxLayout>
@@ -19,6 +20,7 @@ GeneralPage::GeneralPage(SettingsStore &settingsStore, AudioService &audioServic
     setObjectName(QStringLiteral("generalPage"));
     auto *root = new QVBoxLayout(this);
     root->addWidget(buildDesktopGroup());
+    root->addWidget(buildAlertGroup());
     root->addWidget(buildRingtoneGroup());
     root->addStretch();
 
@@ -27,6 +29,25 @@ GeneralPage::GeneralPage(SettingsStore &settingsStore, AudioService &audioServic
     closeToTrayCheck_->setChecked(current.closeToTray);
     autostartCheck_->setChecked(current.autostart);
     ringtoneEdit_->setText(current.ringtonePath);
+    incomingAlertCombo_->setCurrentIndex(
+        incomingAlertCombo_->findData(static_cast<int>(current.incomingAlert)));
+}
+
+QGroupBox *GeneralPage::buildAlertGroup() {
+    auto *group = new QGroupBox(tr("Notifications"), this);
+    auto *layout = new QVBoxLayout(group);
+    auto *label = new QLabel(tr("Announce incoming calls with:"), group);
+    incomingAlertCombo_ = new QComboBox(group);
+    incomingAlertCombo_->setObjectName(QStringLiteral("incomingAlertCombo"));
+    incomingAlertCombo_->addItem(tr("Popup window"), static_cast<int>(IncomingAlertMode::Popup));
+    incomingAlertCombo_->addItem(tr("Desktop notification"),
+                                 static_cast<int>(IncomingAlertMode::Notification));
+    incomingAlertCombo_->addItem(tr("Popup and desktop notification"),
+                                 static_cast<int>(IncomingAlertMode::Both));
+    label->setBuddy(incomingAlertCombo_);
+    layout->addWidget(label);
+    layout->addWidget(incomingAlertCombo_);
+    return group;
 }
 
 QGroupBox *GeneralPage::buildDesktopGroup() {
@@ -81,6 +102,8 @@ void GeneralPage::applyChanges() {
     updated.closeToTray = closeToTrayCheck_->isChecked();
     updated.autostart = autostartCheck_->isChecked();
     updated.ringtonePath = ringtoneEdit_->text().trimmed();
+    updated.incomingAlert =
+        static_cast<IncomingAlertMode>(incomingAlertCombo_->currentData().toInt());
     settingsStore_.setGeneralSettings(updated);
 }
 

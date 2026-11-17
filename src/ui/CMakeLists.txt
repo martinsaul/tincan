@@ -39,6 +39,8 @@ add_library(tincan_ui STATIC
     main_window.cpp
     messages_view.h
     messages_view.cpp
+    secret_fallback_prompt.h
+    secret_fallback_prompt.cpp
     settings_dialog.h
     settings_dialog.cpp
     transfer_dialog.h

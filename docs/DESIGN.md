@@ -84,11 +84,13 @@ ui  ──►  app  ──►  core  ◄──  sip
   and transports), `SipAccount`, `SipCall`, `AudioDeviceCatalog`,
   `CodecCatalog`, `CallRecorder`, `ConferenceBridge`, `PresenceBuddy`,
   `EventMarshaller`.
-- **app/** (QtCore/QtSql, no widgets): use-case services wired by
+- **app/** (QtCore/QtSql/QtDBus, no widgets): use-case services wired by
   constructor injection. `AccountService`, `CallService`,
   `ContactRepository`, `HistoryRepository`, `MessageRepository`,
   `SettingsStore`, `SecretStore`, `RingtonePlayer`, `SingleInstance`,
-  `CommandLine`, `UriParser`, `AutoAnswerPolicy`, `ForwardingPolicy`.
+  `CommandLine`, `UriParser`, `AutoAnswerPolicy`, `ForwardingPolicy`,
+  `Autostart`, `Notifier` (freedesktop notifications over D-Bus),
+  `ConfigSecretStore` / `FallbackSecretStore` (opt-in file fallback).
 - **ui/** (QtWidgets): `MainWindow`, `DialpadWidget`, `CallPanel`,
   `IncomingCallPopup`, `ContactsView`, `HistoryView`, `ChatWindow`,
   `SettingsDialog` with one class per page, `AccountDialog`, `TrayIcon`.

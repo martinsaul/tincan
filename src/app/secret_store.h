@@ -22,6 +22,10 @@ public:
     virtual void writePassword(const QString &accountId, const QString &password,
                                WriteCallback callback = {}) = 0;
     virtual void deletePassword(const QString &accountId, DeleteCallback callback = {}) = 0;
+
+    // True when the most recent failed operation failed because no secret
+    // backend (e.g. Secret Service) is available, as opposed to a normal error.
+    virtual bool backendUnavailable() const { return false; }
 };
 
 class KeychainSecretStore : public ISecretStore {
@@ -32,9 +36,13 @@ public:
     void writePassword(const QString &accountId, const QString &password,
                        WriteCallback callback = {}) override;
     void deletePassword(const QString &accountId, DeleteCallback callback = {}) override;
+    bool backendUnavailable() const override;
 
 private:
+    void noteError(int keychainError);
+
     QString serviceName_;
+    bool backendUnavailable_ = false;
 };
 
 class MemorySecretStore : public ISecretStore {

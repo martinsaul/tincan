@@ -14,11 +14,19 @@
 
 namespace tincan {
 
+// How an incoming call is announced: the in-app popup, a desktop
+// notification, or both.
+enum class IncomingAlertMode { Popup, Notification, Both };
+
+// What to do with passwords when no keychain backend is available.
+enum class SecretFallbackChoice { Undecided, ConfigFile, Declined };
+
 struct GeneralSettings {
     bool startMinimized = false;
     bool closeToTray = false;
     bool autostart = false;
     QString ringtonePath;
+    IncomingAlertMode incomingAlert = IncomingAlertMode::Both;
 };
 
 struct AudioSettings {
@@ -64,6 +72,9 @@ public:
 
     CallSettings callSettings() const;
     void setCallSettings(const CallSettings &settings);
+
+    SecretFallbackChoice secretFallbackChoice() const;
+    void setSecretFallbackChoice(SecretFallbackChoice choice);
 
 private:
     void syncAndRestrictPermissions();

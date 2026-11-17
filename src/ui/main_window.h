@@ -52,9 +52,12 @@ public:
 public slots:
     void openSettingsDialog();
     void requestQuit();
+    void bringToFront();
+    void showHistoryTab();
 
 signals:
     void closedWithoutTray();
+    void settingsApplied();
 
 protected:
     void closeEvent(QCloseEvent *event) override;

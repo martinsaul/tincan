@@ -21,6 +21,28 @@ QString resolveSettingsPath(const QString &path) {
     return QDir(AppPaths::configDir()).filePath(QStringLiteral("tincan.ini"));
 }
 
+QString alertModeToString(IncomingAlertMode mode) {
+    switch (mode) {
+    case IncomingAlertMode::Popup:
+        return QStringLiteral("popup");
+    case IncomingAlertMode::Notification:
+        return QStringLiteral("notification");
+    case IncomingAlertMode::Both:
+        break;
+    }
+    return QStringLiteral("both");
+}
+
+IncomingAlertMode alertModeFromString(const QString &text) {
+    if (text == QLatin1String("popup")) {
+        return IncomingAlertMode::Popup;
+    }
+    if (text == QLatin1String("notification")) {
+        return IncomingAlertMode::Notification;
+    }
+    return IncomingAlertMode::Both;
+}
+
 void ensurePrivateFileExists(const QString &filePath) {
     const QFileInfo info(filePath);
     QDir().mkpath(info.absolutePath());
@@ -214,6 +236,8 @@ GeneralSettings SettingsStore::generalSettings() const {
     g.closeToTray = settings_.value(QStringLiteral("closeToTray"), false).toBool();
     g.autostart = settings_.value(QStringLiteral("autostart"), false).toBool();
     g.ringtonePath = settings_.value(QStringLiteral("ringtonePath")).toString();
+    g.incomingAlert =
+        alertModeFromString(settings_.value(QStringLiteral("incomingAlert")).toString());
     settings_.endGroup();
     return g;
 }
@@ -224,6 +248,7 @@ void SettingsStore::setGeneralSettings(const GeneralSettings &settings) {
     settings_.setValue(QStringLiteral("closeToTray"), settings.closeToTray);
     settings_.setValue(QStringLiteral("autostart"), settings.autostart);
     settings_.setValue(QStringLiteral("ringtonePath"), settings.ringtonePath);
+    settings_.setValue(QStringLiteral("incomingAlert"), alertModeToString(settings.incomingAlert));
     settings_.endGroup();
     syncAndRestrictPermissions();
 }
@@ -289,6 +314,29 @@ void SettingsStore::setCallSettings(const CallSettings &settings) {
     settings_.setValue(QStringLiteral("recordingsDir"), settings.recordingsDir.trimmed());
     settings_.setValue(QStringLiteral("autoRecord"), settings.autoRecord);
     settings_.endGroup();
+    syncAndRestrictPermissions();
+}
+
+SecretFallbackChoice SettingsStore::secretFallbackChoice() const {
+    const QString value = settings_.value(QStringLiteral("secrets/fallback")).toString();
+    if (value == QLatin1String("config")) {
+        return SecretFallbackChoice::ConfigFile;
+    }
+    if (value == QLatin1String("declined")) {
+        return SecretFallbackChoice::Declined;
+    }
+    return SecretFallbackChoice::Undecided;
+}
+
+void SettingsStore::setSecretFallbackChoice(SecretFallbackChoice choice) {
+    const QString key = QStringLiteral("secrets/fallback");
+    if (choice == SecretFallbackChoice::Undecided) {
+        settings_.remove(key);
+    } else {
+        settings_.setValue(key, choice == SecretFallbackChoice::ConfigFile
+                                    ? QStringLiteral("config")
+                                    : QStringLiteral("declined"));
+    }
     syncAndRestrictPermissions();
 }
 

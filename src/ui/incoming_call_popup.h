@@ -9,6 +9,8 @@
 #include <QFrame>
 #include <QString>
 
+#include <functional>
+
 class QLabel;
 class QPushButton;
 
@@ -24,6 +26,9 @@ public:
     int currentCallId() const;
     QString callerText() const;
 
+    // The popup only appears while the predicate (if set) returns true.
+    void setShowPredicate(std::function<bool()> predicate);
+
 private:
     void onIncomingCall(const CallInfo &info);
     void onCallChangedOrRemoved();
@@ -33,6 +38,7 @@ private:
 
     CallService &callService_;
     ContactService *contactService_ = nullptr;
+    std::function<bool()> showPredicate_;
     int currentCallId_ = -1;
     QLabel *titleLabel_ = nullptr;
     QLabel *callerLabel_ = nullptr;
