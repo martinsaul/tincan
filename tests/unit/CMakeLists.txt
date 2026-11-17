@@ -18,9 +18,12 @@ endfunction()
 
 tincan_add_unit_test(tst_version tst_version.cpp tincan_core)
 tincan_add_unit_test(tst_sipuri tst_sipuri.cpp tincan_core)
+tincan_add_unit_test(tst_sipheaders tst_sipheaders.cpp tincan_core)
 tincan_add_unit_test(tst_accountconfig tst_accountconfig.cpp tincan_core)
 tincan_add_unit_test(tst_accountconfigmapper tst_accountconfigmapper.cpp tincan_sip Tincan::pjproject)
 tincan_add_unit_test(tst_apppaths tst_apppaths.cpp tincan_app)
+tincan_add_unit_test(tst_autoanswerpolicy tst_autoanswerpolicy.cpp tincan_app)
+tincan_add_unit_test(tst_forwardingpolicy tst_forwardingpolicy.cpp tincan_app)
 tincan_add_unit_test(tst_pjversion tst_pjversion.cpp tincan_sip)
 tincan_add_unit_test(tst_settingsstore tst_settingsstore.cpp tincan_app)
 

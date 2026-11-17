@@ -7,6 +7,7 @@
 #include "core/audio_device.h"
 #include "core/call_info.h"
 #include "core/codec_info.h"
+#include "core/dtmf_method.h"
 #include "core/engine_config.h"
 #include "core/tone.h"
 
@@ -26,7 +27,18 @@ public:
     virtual int makeCall(const QString &accountId, const QString &uri, QString *error) = 0;
     virtual bool answer(int callId) = 0;
     virtual bool reject(int callId, int statusCode) = 0;
+    virtual bool redirect(int callId, const QString &uri) = 0;
     virtual bool hangup(int callId) = 0;
+    virtual bool setHold(int callId, bool hold) = 0;
+    virtual bool setMute(int callId, bool mute) = 0;
+    virtual bool sendDtmf(int callId, const QString &digits, DtmfMethod method) = 0;
+    virtual bool transferBlind(int callId, const QString &uri) = 0;
+    virtual bool transferAttended(int callId, int targetCallId) = 0;
+    virtual bool conference(const QList<int> &callIds) = 0;
+    virtual bool unconference(int callId) = 0;
+    virtual bool startRecording(int callId, const QString &wavPath) = 0;
+    virtual void stopRecording(int callId) = 0;
+    virtual bool setCallVolume(int callId, float rxLevel, float txLevel) = 0;
     virtual QList<CallInfo> calls() const = 0;
 
     virtual QList<AudioDevice> audioDevices() const = 0;

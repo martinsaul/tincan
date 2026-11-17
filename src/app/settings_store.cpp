@@ -25,10 +25,8 @@ void ensurePrivateFileExists(const QString &filePath) {
     const QFileInfo info(filePath);
     QDir().mkpath(info.absolutePath());
     QFile file(filePath);
-    if (!file.exists()) {
-        if (file.open(QIODevice::WriteOnly)) {
-            file.close();
-        }
+    if (!file.exists() && file.open(QIODevice::WriteOnly)) {
+        file.close();
     }
     QFile::setPermissions(filePath, QFileDevice::ReadOwner | QFileDevice::WriteOwner);
 }
@@ -77,6 +75,52 @@ SrtpMode srtpFromString(const QString &value) {
         return SrtpMode::Mandatory;
     }
     return SrtpMode::Disabled;
+}
+
+QString dtmfToString(DtmfMethod method) {
+    switch (method) {
+    case DtmfMethod::Rfc4733:
+        return QStringLiteral("rfc4733");
+    case DtmfMethod::SipInfo:
+        return QStringLiteral("sipinfo");
+    case DtmfMethod::InBand:
+        return QStringLiteral("inband");
+    }
+    return QStringLiteral("rfc4733");
+}
+
+DtmfMethod dtmfFromString(const QString &value) {
+    const QString lower = value.trimmed().toLower();
+    if (lower == QStringLiteral("sipinfo")) {
+        return DtmfMethod::SipInfo;
+    }
+    if (lower == QStringLiteral("inband")) {
+        return DtmfMethod::InBand;
+    }
+    return DtmfMethod::Rfc4733;
+}
+
+QString autoAnswerToString(AutoAnswerMode mode) {
+    switch (mode) {
+    case AutoAnswerMode::Off:
+        return QStringLiteral("off");
+    case AutoAnswerMode::Always:
+        return QStringLiteral("always");
+    case AutoAnswerMode::HeaderOnly:
+        return QStringLiteral("header");
+    }
+    return QStringLiteral("off");
+}
+
+AutoAnswerMode autoAnswerFromString(const QString &value) {
+    const QString lower = value.trimmed().toLower();
+    if (lower == QStringLiteral("always")) {
+        return AutoAnswerMode::Always;
+    }
+    if (lower == QStringLiteral("header")) {
+        return AutoAnswerMode::HeaderOnly;
+    }
+    return AutoAnswerMode::Off;
 }
 
 AccountConfig readOneAccount(QSettings &s) {
@@ -205,6 +249,43 @@ void SettingsStore::setAudioSettings(const AudioSettings &settings) {
     settings_.setValue(QStringLiteral("ecTailMs"), settings.ecTailMs);
     settings_.setValue(QStringLiteral("codecOrder"), settings.codecOrder);
     settings_.setValue(QStringLiteral("disabledCodecs"), settings.disabledCodecs);
+    settings_.endGroup();
+    syncAndRestrictPermissions();
+}
+
+CallSettings SettingsStore::callSettings() const {
+    CallSettings c;
+    settings_.beginGroup(QStringLiteral("calls"));
+    c.dtmfMethod = dtmfFromString(settings_.value(QStringLiteral("dtmfMethod")).toString());
+    c.autoAnswerMode =
+        autoAnswerFromString(settings_.value(QStringLiteral("autoAnswerMode")).toString());
+    c.autoAnswerDelaySec = settings_.value(QStringLiteral("autoAnswerDelaySec"), 0).toInt();
+    c.dnd = settings_.value(QStringLiteral("dnd"), false).toBool();
+    c.forwardAlways = settings_.value(QStringLiteral("forwardAlways")).toString();
+    c.forwardOnBusy = settings_.value(QStringLiteral("forwardOnBusy")).toString();
+    c.forwardOnNoAnswer = settings_.value(QStringLiteral("forwardOnNoAnswer")).toString();
+    c.forwardNoAnswerSec = settings_.value(QStringLiteral("forwardNoAnswerSec"), 15).toInt();
+    c.recordingsDir = settings_.value(QStringLiteral("recordingsDir")).toString().trimmed();
+    if (c.recordingsDir.isEmpty()) {
+        c.recordingsDir = AppPaths::recordingsDir();
+    }
+    c.autoRecord = settings_.value(QStringLiteral("autoRecord"), false).toBool();
+    settings_.endGroup();
+    return c;
+}
+
+void SettingsStore::setCallSettings(const CallSettings &settings) {
+    settings_.beginGroup(QStringLiteral("calls"));
+    settings_.setValue(QStringLiteral("dtmfMethod"), dtmfToString(settings.dtmfMethod));
+    settings_.setValue(QStringLiteral("autoAnswerMode"), autoAnswerToString(settings.autoAnswerMode));
+    settings_.setValue(QStringLiteral("autoAnswerDelaySec"), settings.autoAnswerDelaySec);
+    settings_.setValue(QStringLiteral("dnd"), settings.dnd);
+    settings_.setValue(QStringLiteral("forwardAlways"), settings.forwardAlways.trimmed());
+    settings_.setValue(QStringLiteral("forwardOnBusy"), settings.forwardOnBusy.trimmed());
+    settings_.setValue(QStringLiteral("forwardOnNoAnswer"), settings.forwardOnNoAnswer.trimmed());
+    settings_.setValue(QStringLiteral("forwardNoAnswerSec"), settings.forwardNoAnswerSec);
+    settings_.setValue(QStringLiteral("recordingsDir"), settings.recordingsDir.trimmed());
+    settings_.setValue(QStringLiteral("autoRecord"), settings.autoRecord);
     settings_.endGroup();
     syncAndRestrictPermissions();
 }

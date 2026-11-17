@@ -74,6 +74,20 @@ CallInfo CallInfoMapper::map(const pj::CallInfo &pjInfo, const QString &accountI
     info.lastStatusCode = static_cast<int>(pjInfo.lastStatusCode);
     info.lastReason = QString::fromStdString(pjInfo.lastReason);
     info.connectedAt = connectedAt;
+
+    for (const pj::CallMediaInfo &med : pjInfo.media) {
+        if (med.type != PJMEDIA_TYPE_AUDIO) {
+            continue;
+        }
+        if (med.status == PJSUA_CALL_MEDIA_LOCAL_HOLD) {
+            info.localHold = true;
+            if ((med.dir & PJMEDIA_DIR_ENCODING) == 0) {
+                info.remoteHold = true;
+            }
+        } else if (med.status == PJSUA_CALL_MEDIA_REMOTE_HOLD) {
+            info.remoteHold = true;
+        }
+    }
     return info;
 }
 

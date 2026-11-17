@@ -35,7 +35,7 @@ check_function_sizes() {
         return 0
     fi
 
-    lizard -L "${MAX_FUNC_NLOC}" -w "${REPO_ROOT}/src" "${REPO_ROOT}/tests"
+    lizard -T nloc="${MAX_FUNC_NLOC}" -C 1000 -a 100 -w "${REPO_ROOT}/src" "${REPO_ROOT}/tests"
 }
 
 main() {

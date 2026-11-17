@@ -8,6 +8,7 @@
 #include <QMap>
 #include <QWidget>
 
+class QPushButton;
 class QVBoxLayout;
 
 namespace tincan::ui {
@@ -22,16 +23,21 @@ public:
 
     QList<CallCard *> cards() const;
     CallCard *cardForCall(int callId) const;
+    QPushButton *mergeButton() const;
 
 private:
     void onCallAdded(const CallInfo &info);
     void onCallUpdated(const CallInfo &info);
     void onCallRemoved(const CallInfo &info);
+    void connectCardSignals(CallCard *card);
     void handleHangupOrReject(int callId);
+    void openTransferDialog(int callId);
+    void refreshActiveHighlights();
     void syncVisibility();
 
     CallService &callService_;
-    QVBoxLayout *layout_ = nullptr;
+    QPushButton *mergeButton_ = nullptr;
+    QVBoxLayout *cardsLayout_ = nullptr;
     QMap<int, CallCard *> cards_;
 };
 

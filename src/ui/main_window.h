@@ -11,8 +11,10 @@
 
 #include <QMainWindow>
 
+class QAction;
 class QCloseEvent;
 class QComboBox;
+class QEvent;
 class QLabel;
 class QTabWidget;
 class QToolButton;
@@ -31,6 +33,8 @@ public:
 
     DialpadWidget *dialpad() const;
     CallPanel *callPanel() const;
+    QLabel *dndBadge() const;
+    QAction *dndAction() const;
 
 public slots:
     void openSettingsDialog();
@@ -41,12 +45,15 @@ signals:
 
 protected:
     void closeEvent(QCloseEvent *event) override;
+    bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
     QWidget *buildHeaderBar();
+    QMenu *buildHeaderMenu(QWidget *parent);
     QWidget *createComingSoonPlaceholder() const;
     void refreshAccountsCombo();
     void refreshStatusIndicator();
+    void refreshDndState(bool enabled);
     void onAccountComboChanged(int index);
     void onDialRequested(const QString &text);
     void showErrorBanner(const QString &message);
@@ -62,6 +69,8 @@ private:
 
     QLabel *statusDot_ = nullptr;
     QComboBox *accountCombo_ = nullptr;
+    QLabel *dndBadge_ = nullptr;
+    QAction *dndAction_ = nullptr;
     QToolButton *menuButton_ = nullptr;
     QLabel *errorLabel_ = nullptr;
     CallPanel *callPanel_ = nullptr;

@@ -41,6 +41,13 @@ bool PjsuaPeer::start(int autoAnswerCode, int durationSec, const QString &destin
     return false;
 }
 
+void PjsuaPeer::sendInput(const QByteArray &data) {
+    if (process_.state() == QProcess::Running) {
+        process_.write(data);
+        process_.waitForBytesWritten(1000);
+    }
+}
+
 bool PjsuaPeer::tryStartOnce(int autoAnswerCode, int durationSec, const QString &destinationUri) {
     capturedOutput_.clear();
     localPort_ = allocateFreeUdpPort();
@@ -54,8 +61,8 @@ bool PjsuaPeer::tryStartOnce(int autoAnswerCode, int durationSec, const QString 
         QStringLiteral("--no-tcp"),
         QStringLiteral("--auto-answer=%1").arg(autoAnswerCode),
         QStringLiteral("--max-calls=4"),
-        QStringLiteral("--log-level=3"),
-        QStringLiteral("--app-log-level=3"),
+        QStringLiteral("--log-level=4"),
+        QStringLiteral("--app-log-level=4"),
         QStringLiteral("--stdout-no-buf"),
         QStringLiteral("--no-vad"),
         QStringLiteral("--duration=%1").arg(durationSec),
@@ -72,8 +79,7 @@ bool PjsuaPeer::tryStartOnce(int autoAnswerCode, int durationSec, const QString 
     const bool ready = QTest::qWaitFor(
         [this]() {
             return capturedOutput_.contains("Ready: Success") ||
-                   capturedOutput_.contains(">>>>") ||
-                   process_.state() != QProcess::Running;
+                   capturedOutput_.contains(">>>>") || process_.state() != QProcess::Running;
         },
         10000);
     return ready && process_.state() == QProcess::Running;
@@ -92,16 +98,10 @@ void PjsuaPeer::stop() {
     capturedOutput_.append(process_.readAllStandardOutput());
 }
 
-int PjsuaPeer::localPort() const {
-    return localPort_;
-}
+int PjsuaPeer::localPort() const { return localPort_; }
 
-QString PjsuaPeer::sipUri() const {
-    return QStringLiteral("sip:127.0.0.1:%1").arg(localPort_);
-}
+QString PjsuaPeer::sipUri() const { return QStringLiteral("sip:127.0.0.1:%1").arg(localPort_); }
 
-QString PjsuaPeer::output() const {
-    return QString::fromUtf8(capturedOutput_);
-}
+QString PjsuaPeer::output() const { return QString::fromUtf8(capturedOutput_); }
 
 } // namespace tincan::test

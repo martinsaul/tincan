@@ -5,9 +5,12 @@
 
 #include "core/engine_config.h"
 #include "core/version.h"
+#include "ui/call_card.h"
+#include "ui/call_panel.h"
 #include "ui/settings_dialog.h"
 
 #include <QCoreApplication>
+#include <QDateTime>
 #include <QDir>
 #include <QPixmap>
 
@@ -22,6 +25,20 @@ EngineConfig buildDefaultEngineConfig(bool nullAudio) {
     cfg.nullAudio = nullAudio;
     cfg.userAgent = QStringLiteral("Tincan/") + Version::string();
     return cfg;
+}
+
+CallInfo buildSampleConnectedCall() {
+    CallInfo sample;
+    sample.callId = 900;
+    sample.accountId = QStringLiteral("demo");
+    sample.direction = CallDirection::Outgoing;
+    sample.state = CallState::Confirmed;
+    sample.remoteDisplayName = QStringLiteral("Alice Vance");
+    sample.remoteUri = QStringLiteral("sip:204@pbx.example.com");
+    sample.connectedAt = QDateTime::currentDateTime().addSecs(-83);
+    sample.recording = true;
+    sample.rxLevel = 1.2f;
+    return sample;
 }
 
 } // namespace
@@ -73,6 +90,22 @@ bool Composition::saveScreenshots(const QString &directoryPath) {
     QCoreApplication::processEvents();
     const bool mainOk = mainWindow_.grab().save(dir.filePath(QStringLiteral("main_window.png")));
 
+    CallInfo sample = buildSampleConnectedCall();
+    callService_.onCallChanged(sample);
+    QCoreApplication::processEvents();
+    bool cardOk = false;
+    if (ui::CallCard *card = mainWindow_.callPanel()->cardForCall(sample.callId)) {
+        card->setKeypadExpanded(true);
+        card->appendDtmfEcho(QStringLiteral("120#"));
+        mainWindow_.resize(320, 680);
+        QCoreApplication::processEvents();
+        cardOk = card->grab().save(dir.filePath(QStringLiteral("call_card.png")));
+        (void)mainWindow_.grab().save(dir.filePath(QStringLiteral("main_window_in_call.png")));
+    }
+    sample.state = CallState::Disconnected;
+    callService_.onCallChanged(sample);
+    QCoreApplication::processEvents();
+
     ui::SettingsDialog settingsDlg(accountService_, audioService_, settings_, secrets_);
     settingsDlg.show();
     QCoreApplication::processEvents();
@@ -87,7 +120,11 @@ bool Composition::saveScreenshots(const QString &directoryPath) {
     QCoreApplication::processEvents();
     (void)settingsDlg.grab().save(dir.filePath(QStringLiteral("settings_general.png")));
 
-    return mainOk && settingsOk;
+    settingsDlg.setCurrentPageIndex(3);
+    QCoreApplication::processEvents();
+    (void)settingsDlg.grab().save(dir.filePath(QStringLiteral("settings_calls.png")));
+
+    return mainOk && cardOk && settingsOk;
 }
 
 } // namespace tincan

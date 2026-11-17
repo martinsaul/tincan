@@ -19,9 +19,7 @@ FakeSipEngine::FakeSipEngine(ISipEvents *events) : events_(events) {
     };
 }
 
-void FakeSipEngine::setEvents(ISipEvents *events) {
-    events_ = events;
-}
+void FakeSipEngine::setEvents(ISipEvents *events) { events_ = events; }
 
 bool FakeSipEngine::start(const EngineConfig &, QString *) {
     started = true;
@@ -34,9 +32,7 @@ void FakeSipEngine::shutdown() {
     activeAccounts.clear();
 }
 
-int FakeSipEngine::localUdpPort() const {
-    return udpPort;
-}
+int FakeSipEngine::localUdpPort() const { return udpPort; }
 
 bool FakeSipEngine::addAccount(const AccountConfig &config, QString *error) {
     if (config.id.trimmed().isEmpty()) {
@@ -91,6 +87,14 @@ bool FakeSipEngine::reject(int callId, int statusCode) {
     return true;
 }
 
+bool FakeSipEngine::redirect(int callId, const QString &uri) {
+    if (!activeCalls_.contains(callId) || uri.trimmed().isEmpty()) {
+        return false;
+    }
+    redirectedCalls.append(RedirectRecord{callId, uri});
+    return true;
+}
+
 bool FakeSipEngine::hangup(int callId) {
     if (!activeCalls_.contains(callId)) {
         return false;
@@ -99,13 +103,116 @@ bool FakeSipEngine::hangup(int callId) {
     return true;
 }
 
-QList<CallInfo> FakeSipEngine::calls() const {
-    return activeCalls_.values();
+bool FakeSipEngine::setHold(int callId, bool hold) {
+    auto it = activeCalls_.find(callId);
+    if (it == activeCalls_.end()) {
+        return false;
+    }
+    holdOperations.append(HoldRecord{callId, hold});
+    it->localHold = hold;
+    notifyUpdated(callId);
+    return true;
 }
 
-QList<AudioDevice> FakeSipEngine::audioDevices() const {
-    return fakeDevices;
+bool FakeSipEngine::setMute(int callId, bool mute) {
+    auto it = activeCalls_.find(callId);
+    if (it == activeCalls_.end()) {
+        return false;
+    }
+    it->muted = mute;
+    notifyUpdated(callId);
+    return true;
 }
+
+bool FakeSipEngine::sendDtmf(int callId, const QString &digits, DtmfMethod method) {
+    if (!activeCalls_.contains(callId) || digits.isEmpty()) {
+        return false;
+    }
+    sentDtmf.append(DtmfRecord{callId, digits, method});
+    return true;
+}
+
+bool FakeSipEngine::transferBlind(int callId, const QString &uri) {
+    if (!activeCalls_.contains(callId) || uri.trimmed().isEmpty()) {
+        return false;
+    }
+    blindTransfers.append(TransferBlindRecord{callId, uri});
+    return true;
+}
+
+bool FakeSipEngine::transferAttended(int callId, int targetCallId) {
+    if (callId == targetCallId || !activeCalls_.contains(callId) ||
+        !activeCalls_.contains(targetCallId)) {
+        return false;
+    }
+    attendedTransfers.append(TransferAttendedRecord{callId, targetCallId});
+    return true;
+}
+
+bool FakeSipEngine::conference(const QList<int> &callIds) {
+    if (callIds.size() < 2) {
+        return false;
+    }
+    for (const int id : callIds) {
+        if (!activeCalls_.contains(id)) {
+            return false;
+        }
+    }
+    conferenceCalls.append(callIds);
+    for (const int id : callIds) {
+        activeCalls_[id].inConference = true;
+        activeCalls_[id].localHold = false;
+        notifyUpdated(id);
+    }
+    return true;
+}
+
+bool FakeSipEngine::unconference(int callId) {
+    auto it = activeCalls_.find(callId);
+    if (it == activeCalls_.end() || !it->inConference) {
+        return false;
+    }
+    unconferencedCallIds.append(callId);
+    it->inConference = false;
+    notifyUpdated(callId);
+    return true;
+}
+
+bool FakeSipEngine::startRecording(int callId, const QString &wavPath) {
+    auto it = activeCalls_.find(callId);
+    if (it == activeCalls_.end() || wavPath.trimmed().isEmpty()) {
+        return false;
+    }
+    startedRecordings.append(RecordStartRecord{callId, wavPath});
+    it->recording = true;
+    notifyUpdated(callId);
+    return true;
+}
+
+void FakeSipEngine::stopRecording(int callId) {
+    auto it = activeCalls_.find(callId);
+    if (it == activeCalls_.end() || !it->recording) {
+        return;
+    }
+    stoppedRecordingIds.append(callId);
+    it->recording = false;
+    notifyUpdated(callId);
+}
+
+bool FakeSipEngine::setCallVolume(int callId, float rxLevel, float txLevel) {
+    auto it = activeCalls_.find(callId);
+    if (it == activeCalls_.end()) {
+        return false;
+    }
+    volumeChanges.append(VolumeRecord{callId, rxLevel, txLevel});
+    it->rxLevel = rxLevel;
+    it->txLevel = txLevel;
+    notifyUpdated(callId);
+    return true;
+}
+
+QList<CallInfo> FakeSipEngine::calls() const { return activeCalls_.values(); }
+QList<AudioDevice> FakeSipEngine::audioDevices() const { return fakeDevices; }
 
 bool FakeSipEngine::setAudioDevices(int captureIndex, int playbackIndex) {
     lastCaptureIndex = captureIndex;
@@ -113,13 +220,8 @@ bool FakeSipEngine::setAudioDevices(int captureIndex, int playbackIndex) {
     return true;
 }
 
-void FakeSipEngine::setRingDevice(int playbackIndex) {
-    lastRingIndex = playbackIndex;
-}
-
-QList<CodecInfo> FakeSipEngine::codecs() const {
-    return fakeCodecs;
-}
+void FakeSipEngine::setRingDevice(int playbackIndex) { lastRingIndex = playbackIndex; }
+QList<CodecInfo> FakeSipEngine::codecs() const { return fakeCodecs; }
 
 bool FakeSipEngine::setCodecPriority(const QString &id, int priority) {
     for (CodecInfo &c : fakeCodecs) {
@@ -154,7 +256,8 @@ void FakeSipEngine::injectRegistration(const RegistrationInfo &info) {
 }
 
 int FakeSipEngine::injectIncomingCall(const QString &accountId, const QString &remoteUri,
-                                      const QString &displayName) {
+                                      const QString &displayName,
+                                      const QMap<QString, QString> &headers) {
     const int id = nextCallId++;
     CallInfo info;
     info.callId = id;
@@ -163,6 +266,7 @@ int FakeSipEngine::injectIncomingCall(const QString &accountId, const QString &r
     info.state = CallState::Incoming;
     info.remoteUri = remoteUri;
     info.remoteDisplayName = displayName;
+    info.incomingHeaders = headers;
     activeCalls_.insert(id, info);
     if (events_ != nullptr) {
         events_->onIncomingCall(info);
@@ -187,6 +291,12 @@ void FakeSipEngine::injectCallState(int callId, CallState state, int statusCode,
     }
     if (events_ != nullptr) {
         events_->onCallChanged(info);
+    }
+}
+
+void FakeSipEngine::notifyUpdated(int callId) {
+    if (events_ != nullptr && activeCalls_.contains(callId)) {
+        events_->onCallChanged(activeCalls_.value(callId));
     }
 }
 

@@ -5,10 +5,9 @@
 
 #include "core/sip_uri.h"
 #include "sip/account_config_mapper.h"
-#include "sip/call_registry.h"
+#include "sip/call_controller.h"
 #include "sip/event_marshaller.h"
 #include "sip/sip_account.h"
-#include "sip/sip_call.h"
 #include "sip/sip_endpoint.h"
 #include "sip/tone_player.h"
 
@@ -27,21 +26,17 @@ void setError(QString *error, const QString &message) {
     }
 }
 
-pj::CallOpParam makeAudioCallOpParam() {
-    pj::CallOpParam prm(true);
-    prm.opt.audioCount = 1;
-    prm.opt.videoCount = 0;
-    prm.opt.textCount = 0;
-    return prm;
-}
-
 } // namespace
 
 PjsipEngine::PjsipEngine(ISipEvents &events)
     : events_(events), marshaller_(std::make_unique<EventMarshaller>()),
       endpoint_(std::make_unique<SipEndpoint>()),
       tonePlayer_(std::make_unique<TonePlayer>(*endpoint_)),
-      calls_(std::make_unique<CallRegistry>()) {}
+      callController_(std::make_unique<CallController>(
+          events_, *endpoint_, *marshaller_,
+          [this](const QString &accId, const QString &uri) {
+              return resolveUriForAccount(accId, uri);
+          })) {}
 
 PjsipEngine::~PjsipEngine() {
     shutdown();
@@ -56,19 +51,20 @@ void PjsipEngine::shutdown() {
         return;
     }
 
+    callController_->stopAllMedia();
     tonePlayer_->stopTone();
     endpoint_->hangupAllCalls();
 
     QElapsedTimer timer;
     timer.start();
-    while (!calls_->isEmpty() && timer.elapsed() < 2000) {
+    while (!callController_->isEmpty() && timer.elapsed() < 2000) {
         (void)endpoint_->handleEvents(50);
         QCoreApplication::sendPostedEvents(marshaller_.get());
     }
 
     endpoint_->stopWorkerThreads();
     QCoreApplication::removePostedEvents(marshaller_.get());
-    calls_->clear();
+    callController_->clearAll();
     accounts_.clear();
     endpoint_->shutdown();
 }
@@ -98,17 +94,13 @@ bool PjsipEngine::addAccount(const AccountConfig &config, QString *error) {
         const pj::AccountConfig pjCfg = AccountConfigMapper::map(config);
         auto regCb = [this](const RegistrationInfo &info) { events_.onRegistrationChanged(info); };
         auto incCb = [this](std::unique_ptr<SipCall> call, const CallInfo &info) {
-            handleIncomingCallOnMainThread(std::move(call), info);
-        };
-        auto callCb = [this](const SipCall *call, const CallInfo &info) {
-            handleCallStateOnMainThread(call, info);
+            callController_->adoptIncomingCall(std::move(call), info);
         };
 
-        auto account = std::make_unique<SipAccount>(config, endpoint_->pjEndpoint(), *marshaller_,
-                                                    std::move(regCb), std::move(incCb),
-                                                    std::move(callCb));
-        const bool makeDefault = accounts_.empty();
-        account->create(pjCfg, makeDefault);
+        auto account = std::make_unique<SipAccount>(
+            config, endpoint_->pjEndpoint(), *marshaller_, std::move(regCb), std::move(incCb),
+            callController_->makeCallCallbacks());
+        account->create(pjCfg, accounts_.empty());
         accounts_.emplace(config.id, std::move(account));
         return true;
     } catch (const pj::Error &err) {
@@ -144,123 +136,69 @@ int PjsipEngine::makeCall(const QString &accountId, const QString &uri, QString 
         setError(error, QStringLiteral("Unknown account id: %1").arg(accountId));
         return -1;
     }
-
     const QString targetUri = SipUri::toSipUri(uri, it->second->config());
     if (targetUri.isEmpty()) {
         setError(error, QStringLiteral("Invalid destination URI"));
         return -1;
     }
-
-    try {
-        auto callCb = [this](const SipCall *call, const CallInfo &info) {
-            handleCallStateOnMainThread(call, info);
-        };
-        auto call = std::make_unique<SipCall>(endpoint_->pjEndpoint(), *it->second, accountId,
-                                              *marshaller_, std::move(callCb));
-        call->makeCall(targetUri.toStdString(), makeAudioCallOpParam());
-        const int callId = call->getId();
-        calls_->insert(callId, std::move(call));
-        return callId;
-    } catch (const pj::Error &err) {
-        setError(error, QString::fromStdString(err.info()));
-        return -1;
-    }
+    return callController_->makeCall(*it->second, accountId, targetUri, error);
 }
 
-bool PjsipEngine::answer(int callId) {
-    SipCall *call = calls_->find(callId);
-    if (call == nullptr) {
-        return false;
-    }
-    try {
-        pj::CallOpParam prm = makeAudioCallOpParam();
-        prm.statusCode = PJSIP_SC_OK;
-        call->answer(prm);
-        return true;
-    } catch (const pj::Error &) {
-        return false;
-    }
-}
-
+bool PjsipEngine::answer(int callId) { return callController_->answer(callId); }
 bool PjsipEngine::reject(int callId, int statusCode) {
-    if (statusCode < 300 || statusCode > 699) {
-        return false;
-    }
-    SipCall *call = calls_->find(callId);
-    if (call == nullptr) {
-        return false;
-    }
-    try {
-        pj::CallOpParam prm;
-        prm.statusCode = static_cast<pjsip_status_code>(statusCode);
-        call->hangup(prm);
-        return true;
-    } catch (const pj::Error &) {
-        return false;
-    }
+    return callController_->reject(callId, statusCode);
 }
-
-bool PjsipEngine::hangup(int callId) {
-    SipCall *call = calls_->find(callId);
-    if (call == nullptr) {
-        return false;
-    }
-    try {
-        pj::CallOpParam prm;
-        call->hangup(prm);
-        return true;
-    } catch (const pj::Error &) {
-        return false;
-    }
+bool PjsipEngine::redirect(int callId, const QString &uri) {
+    return callController_->redirect(callId, uri);
 }
-
-QList<CallInfo> PjsipEngine::calls() const {
-    return calls_->snapshots();
+bool PjsipEngine::hangup(int callId) { return callController_->hangup(callId); }
+bool PjsipEngine::setHold(int callId, bool hold) { return callController_->setHold(callId, hold); }
+bool PjsipEngine::setMute(int callId, bool mute) { return callController_->setMute(callId, mute); }
+bool PjsipEngine::sendDtmf(int callId, const QString &digits, DtmfMethod method) {
+    return callController_->sendDtmf(callId, digits, method);
 }
-
-QList<AudioDevice> PjsipEngine::audioDevices() const {
-    return endpoint_->audioDevices();
+bool PjsipEngine::transferBlind(int callId, const QString &uri) {
+    return callController_->transferBlind(callId, uri);
 }
+bool PjsipEngine::transferAttended(int callId, int targetCallId) {
+    return callController_->transferAttended(callId, targetCallId);
+}
+bool PjsipEngine::conference(const QList<int> &callIds) {
+    return callController_->conference(callIds);
+}
+bool PjsipEngine::unconference(int callId) { return callController_->unconference(callId); }
+bool PjsipEngine::startRecording(int callId, const QString &wavPath) {
+    return callController_->startRecording(callId, wavPath);
+}
+void PjsipEngine::stopRecording(int callId) { callController_->stopRecording(callId); }
+bool PjsipEngine::setCallVolume(int callId, float rxLevel, float txLevel) {
+    return callController_->setCallVolume(callId, rxLevel, txLevel);
+}
+QList<CallInfo> PjsipEngine::calls() const { return callController_->calls(); }
 
+QList<AudioDevice> PjsipEngine::audioDevices() const { return endpoint_->audioDevices(); }
 bool PjsipEngine::setAudioDevices(int captureIndex, int playbackIndex) {
     return endpoint_->setAudioDevices(captureIndex, playbackIndex);
 }
-
-void PjsipEngine::setRingDevice(int playbackIndex) {
-    tonePlayer_->setRingDevice(playbackIndex);
-}
-
-QList<CodecInfo> PjsipEngine::codecs() const {
-    return endpoint_->codecs();
-}
-
+void PjsipEngine::setRingDevice(int playbackIndex) { tonePlayer_->setRingDevice(playbackIndex); }
+QList<CodecInfo> PjsipEngine::codecs() const { return endpoint_->codecs(); }
 bool PjsipEngine::setCodecPriority(const QString &id, int priority) {
     return endpoint_->setCodecPriority(id, priority);
 }
-
 bool PjsipEngine::setEchoCanceller(bool enabled, int tailMs) {
     return endpoint_->setEchoCanceller(enabled, tailMs);
 }
-
 void PjsipEngine::startTone(Tone tone, const QString &customWav) {
     tonePlayer_->startTone(tone, customWav);
 }
+void PjsipEngine::stopTone() { tonePlayer_->stopTone(); }
 
-void PjsipEngine::stopTone() {
-    tonePlayer_->stopTone();
-}
-
-void PjsipEngine::handleIncomingCallOnMainThread(std::unique_ptr<SipCall> call,
-                                                 const CallInfo &info) {
-    calls_->insert(info.callId, std::move(call));
-    events_.onIncomingCall(info);
-}
-
-void PjsipEngine::handleCallStateOnMainThread(const SipCall *call, const CallInfo &info) {
-    if (info.state == CallState::Disconnected) {
-        calls_->eraseIfSame(info.callId, call);
+QString PjsipEngine::resolveUriForAccount(const QString &accountId, const QString &uri) const {
+    const auto it = accounts_.find(accountId);
+    if (it != accounts_.end()) {
+        return SipUri::toSipUri(uri, it->second->config());
     }
-    events_.onCallChanged(info);
+    return SipUri::toSipUri(uri, AccountConfig{});
 }
 
 } // namespace tincan::sip

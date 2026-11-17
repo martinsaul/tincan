@@ -19,6 +19,7 @@ public:
 
     bool start(int autoAnswerCode = 200, int durationSec = 30,
                const QString &destinationUri = {});
+    void sendInput(const QByteArray &data);
     void stop();
 
     int localPort() const;

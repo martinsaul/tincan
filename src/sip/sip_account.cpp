@@ -3,6 +3,8 @@
 
 #include "sip/sip_account.h"
 
+#include "core/sip_headers.h"
+
 #include <utility>
 
 namespace tincan::sip {
@@ -23,10 +25,10 @@ RegState mapRegState(const pj::OnRegStateParam &prm) {
 
 SipAccount::SipAccount(AccountConfig config, pj::Endpoint &endpoint, EventMarshaller &marshaller,
                        RegChangedHandler onRegChanged, IncomingCallHandler onIncomingCall,
-                       SipCall::StateChangedHandler onCallStateChanged)
+                       SipCall::Callbacks callCallbacks)
     : config_(std::move(config)), endpoint_(endpoint), marshaller_(marshaller),
       onRegChanged_(std::move(onRegChanged)), onIncomingCall_(std::move(onIncomingCall)),
-      onCallStateChanged_(std::move(onCallStateChanged)) {}
+      callCallbacks_(std::move(callCallbacks)) {}
 
 SipAccount::~SipAccount() {
     shutdown();
@@ -63,13 +65,16 @@ void SipAccount::onRegState(pj::OnRegStateParam &prm) {
 void SipAccount::onIncomingCall(pj::OnIncomingCallParam &prm) {
     try {
         auto call = std::make_unique<SipCall>(endpoint_, *this, config_.id, marshaller_,
-                                              onCallStateChanged_, prm.callId);
+                                              callCallbacks_, prm.callId);
+        call->setIncomingHeaders(
+            SipHeaders::parseIncomingHeaders(QString::fromStdString(prm.rdata.wholeMsg)));
+
         CallInfo incomingInfo = call->snapshot();
         incomingInfo.direction = CallDirection::Incoming;
         incomingInfo.state = CallState::Incoming;
 
         // Send 180 before handing ownership to the main thread: once posted,
-        // the main thread may answer, reject or delete the call at any time.
+        // the main thread may answer, reject, redirect or delete the call at any time.
         pj::CallOpParam ringPrm;
         ringPrm.statusCode = PJSIP_SC_RINGING;
         call->answer(ringPrm);

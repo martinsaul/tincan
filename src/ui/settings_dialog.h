@@ -17,6 +17,7 @@ namespace tincan::ui {
 
 class AccountsPage;
 class AudioPage;
+class CallsPage;
 class GeneralPage;
 
 class SettingsDialog : public QDialog {
@@ -32,6 +33,7 @@ public:
     AccountsPage *accountsPage() const;
     AudioPage *audioPage() const;
     GeneralPage *generalPage() const;
+    CallsPage *callsPage() const;
 
     void accept() override;
     void reject() override;
@@ -42,6 +44,7 @@ private:
     AccountsPage *accountsPage_ = nullptr;
     AudioPage *audioPage_ = nullptr;
     GeneralPage *generalPage_ = nullptr;
+    CallsPage *callsPage_ = nullptr;
 };
 
 } // namespace tincan::ui

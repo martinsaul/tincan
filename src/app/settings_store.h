@@ -3,7 +3,9 @@
 
 #pragma once
 
+#include "app/auto_answer_policy.h"
 #include "core/account_config.h"
+#include "core/dtmf_method.h"
 
 #include <QList>
 #include <QSettings>
@@ -29,6 +31,19 @@ struct AudioSettings {
     QStringList disabledCodecs;
 };
 
+struct CallSettings {
+    DtmfMethod dtmfMethod = DtmfMethod::Rfc4733;
+    AutoAnswerMode autoAnswerMode = AutoAnswerMode::Off;
+    int autoAnswerDelaySec = 0;
+    bool dnd = false;
+    QString forwardAlways;
+    QString forwardOnBusy;
+    QString forwardOnNoAnswer;
+    int forwardNoAnswerSec = 15;
+    QString recordingsDir;
+    bool autoRecord = false;
+};
+
 class SettingsStore {
 public:
     explicit SettingsStore(QString filePath = {});
@@ -46,6 +61,9 @@ public:
 
     AudioSettings audioSettings() const;
     void setAudioSettings(const AudioSettings &settings);
+
+    CallSettings callSettings() const;
+    void setCallSettings(const CallSettings &settings);
 
 private:
     void syncAndRestrictPermissions();

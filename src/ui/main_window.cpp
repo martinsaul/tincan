@@ -12,10 +12,13 @@
 #include <QCloseEvent>
 #include <QComboBox>
 #include <QCoreApplication>
+#include <QEvent>
 #include <QHBoxLayout>
+#include <QKeyEvent>
 #include <QKeySequence>
 #include <QLabel>
 #include <QMenu>
+#include <QSignalBlocker>
 #include <QTabWidget>
 #include <QTimer>
 #include <QToolButton>
@@ -49,13 +52,16 @@ QString formatRegistrationTooltip(const RegistrationInfo &reg, bool hasAccount) 
                    ? MainWindow::tr("Registered (%1 %2)").arg(reg.statusCode).arg(reg.reason)
                    : MainWindow::tr("Registered");
     case RegState::Failed:
-        return reg.statusCode > 0
-                   ? MainWindow::tr("Registration failed (%1 %2)")
-                         .arg(reg.statusCode)
-                         .arg(reg.reason)
-                   : MainWindow::tr("Registration failed");
+        return reg.statusCode > 0 ? MainWindow::tr("Registration failed (%1 %2)")
+                                        .arg(reg.statusCode)
+                                        .arg(reg.reason)
+                                  : MainWindow::tr("Registration failed");
     }
     return MainWindow::tr("Unregistered");
+}
+
+bool isDtmfKeyChar(QChar ch) {
+    return (ch >= u'0' && ch <= u'9') || ch == u'*' || ch == u'#';
 }
 
 } // namespace
@@ -68,8 +74,8 @@ MainWindow::MainWindow(AccountService &accountService, CallService &callService,
     setObjectName(QStringLiteral("mainWindow"));
     setWindowTitle(tr("Tincan"));
     setWindowIcon(Icons::appIcon());
-    resize(320, 540);
-    setMinimumSize(280, 420);
+    resize(320, 560);
+    setMinimumSize(290, 440);
 
     auto *central = new QWidget(this);
     auto *root = new QVBoxLayout(central);
@@ -105,15 +111,21 @@ MainWindow::MainWindow(AccountService &accountService, CallService &callService,
 
     setCentralWidget(central);
 
+    if (QCoreApplication *app = QCoreApplication::instance()) {
+        app->installEventFilter(this);
+    }
+
     connect(&accountService_, &AccountService::accountsChanged, this,
             &MainWindow::refreshAccountsCombo);
     connect(&accountService_, &AccountService::defaultAccountChanged, this,
             [this](const QString &) { refreshAccountsCombo(); });
     connect(&accountService_, &AccountService::registrationChanged, this,
             [this](const RegistrationInfo &) { refreshStatusIndicator(); });
+    connect(&callService_, &CallService::dndChanged, this, &MainWindow::refreshDndState);
     connect(&callService_, &CallService::errorOccurred, this, &MainWindow::showErrorBanner);
 
     refreshAccountsCombo();
+    refreshDndState(callService_.isDnd());
 }
 
 QWidget *MainWindow::buildHeaderBar() {
@@ -136,13 +148,36 @@ QWidget *MainWindow::buildHeaderBar() {
     connect(accountCombo_, &QComboBox::currentIndexChanged, this,
             &MainWindow::onAccountComboChanged);
 
+    dndBadge_ = new QLabel(tr("DND"), bar);
+    dndBadge_->setObjectName(QStringLiteral("dndBadge"));
+    dndBadge_->setToolTip(tr("Do Not Disturb is active"));
+    dndBadge_->setStyleSheet(QStringLiteral(
+        "background-color: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; "
+        "border-radius: 3px; padding: 1px 5px; font-size: 10px; font-weight: bold;"));
+    dndBadge_->setVisible(false);
+
     menuButton_ = new QToolButton(bar);
     menuButton_->setObjectName(QStringLiteral("menuButton"));
     menuButton_->setIcon(Icons::settings());
     menuButton_->setToolTip(tr("Menu"));
     menuButton_->setPopupMode(QToolButton::InstantPopup);
+    menuButton_->setMenu(buildHeaderMenu(menuButton_));
 
-    auto *menu = new QMenu(menuButton_);
+    layout->addWidget(statusDot_);
+    layout->addWidget(accountCombo_, 1);
+    layout->addWidget(dndBadge_);
+    layout->addWidget(menuButton_);
+    return bar;
+}
+
+QMenu *MainWindow::buildHeaderMenu(QWidget *parent) {
+    auto *menu = new QMenu(parent);
+    dndAction_ = menu->addAction(tr("Do Not Disturb"));
+    dndAction_->setCheckable(true);
+    dndAction_->setChecked(callService_.isDnd());
+    connect(dndAction_, &QAction::toggled, &callService_, &CallService::setDnd);
+
+    menu->addSeparator();
     QAction *settingsAct = menu->addAction(Icons::settings(), tr("Settings..."));
     settingsAct->setShortcut(QKeySequence::Preferences);
     connect(settingsAct, &QAction::triggered, this, &MainWindow::openSettingsDialog);
@@ -153,13 +188,7 @@ QWidget *MainWindow::buildHeaderBar() {
     quitAct->setShortcut(QKeySequence::Quit);
     connect(quitAct, &QAction::triggered, this, &MainWindow::requestQuit);
     addAction(quitAct);
-
-    menuButton_->setMenu(menu);
-
-    layout->addWidget(statusDot_);
-    layout->addWidget(accountCombo_, 1);
-    layout->addWidget(menuButton_);
-    return bar;
+    return menu;
 }
 
 QWidget *MainWindow::createComingSoonPlaceholder() const {
@@ -172,17 +201,16 @@ QWidget *MainWindow::createComingSoonPlaceholder() const {
     return page;
 }
 
-DialpadWidget *MainWindow::dialpad() const {
-    return dialpad_;
-}
-
-CallPanel *MainWindow::callPanel() const {
-    return callPanel_;
-}
+DialpadWidget *MainWindow::dialpad() const { return dialpad_; }
+CallPanel *MainWindow::callPanel() const { return callPanel_; }
+QLabel *MainWindow::dndBadge() const { return dndBadge_; }
+QAction *MainWindow::dndAction() const { return dndAction_; }
 
 void MainWindow::openSettingsDialog() {
     SettingsDialog dlg(accountService_, audioService_, settingsStore_, secretStore_, this);
-    dlg.exec();
+    if (dlg.exec() == QDialog::Accepted) {
+        callService_.reloadSettings();
+    }
 }
 
 void MainWindow::requestQuit() {
@@ -198,6 +226,25 @@ void MainWindow::closeEvent(QCloseEvent *event) {
     }
     QMainWindow::closeEvent(event);
     emit closedWithoutTray();
+}
+
+bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
+    if (event->type() == QEvent::KeyPress) {
+        auto *widget = qobject_cast<QWidget *>(watched);
+        if (widget != nullptr && widget->window() == this) {
+            const int activeId = callService_.activeConfirmedCallId();
+            auto *keyEvent = static_cast<QKeyEvent *>(event);
+            const Qt::KeyboardModifiers disallowed =
+                Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier;
+            const QString typed = keyEvent->text();
+            if (activeId >= 0 && (keyEvent->modifiers() & disallowed) == 0 && typed.size() == 1 &&
+                isDtmfKeyChar(typed.front())) {
+                (void)callService_.sendDtmf(activeId, typed);
+                return true;
+            }
+        }
+    }
+    return QMainWindow::eventFilter(watched, event);
 }
 
 void MainWindow::refreshAccountsCombo() {
@@ -234,6 +281,12 @@ void MainWindow::refreshStatusIndicator() {
     const QString tip = formatRegistrationTooltip(reg, hasAcc);
     statusDot_->setToolTip(tip);
     accountCombo_->setToolTip(tip);
+}
+
+void MainWindow::refreshDndState(bool enabled) {
+    dndBadge_->setVisible(enabled);
+    const QSignalBlocker blocker(dndAction_);
+    dndAction_->setChecked(enabled);
 }
 
 void MainWindow::onAccountComboChanged(int index) {

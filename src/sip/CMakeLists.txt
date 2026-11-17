@@ -3,8 +3,11 @@
 
 add_library(tincan_sip STATIC
     account_config_mapper.cpp
+    call_controller.cpp
     call_info_mapper.cpp
+    call_recorder.cpp
     call_registry.cpp
+    conference_bridge.cpp
     event_marshaller.h
     event_marshaller.cpp
     pj_version.cpp

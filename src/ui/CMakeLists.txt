@@ -13,8 +13,12 @@ add_library(tincan_ui STATIC
     call_card.cpp
     call_panel.h
     call_panel.cpp
+    calls_page.h
+    calls_page.cpp
     dialpad_widget.h
     dialpad_widget.cpp
+    dtmf_pad.h
+    dtmf_pad.cpp
     general_page.h
     general_page.cpp
     icons.h
@@ -25,6 +29,8 @@ add_library(tincan_ui STATIC
     main_window.cpp
     settings_dialog.h
     settings_dialog.cpp
+    transfer_dialog.h
+    transfer_dialog.cpp
     tray_icon.h
     tray_icon.cpp
 )

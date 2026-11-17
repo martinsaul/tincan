@@ -20,12 +20,11 @@ namespace tincan::sip {
 class SipAccount : public pj::Account {
 public:
     using RegChangedHandler = std::function<void(const RegistrationInfo &)>;
-    using IncomingCallHandler =
-        std::function<void(std::unique_ptr<SipCall>, const CallInfo &)>;
+    using IncomingCallHandler = std::function<void(std::unique_ptr<SipCall>, const CallInfo &)>;
 
     SipAccount(AccountConfig config, pj::Endpoint &endpoint, EventMarshaller &marshaller,
                RegChangedHandler onRegChanged, IncomingCallHandler onIncomingCall,
-               SipCall::StateChangedHandler onCallStateChanged);
+               SipCall::Callbacks callCallbacks);
     ~SipAccount() override;
 
     void onRegStarted(pj::OnRegStartedParam &prm) override;
@@ -40,7 +39,7 @@ private:
     EventMarshaller &marshaller_;
     RegChangedHandler onRegChanged_;
     IncomingCallHandler onIncomingCall_;
-    SipCall::StateChangedHandler onCallStateChanged_;
+    SipCall::Callbacks callCallbacks_;
 };
 
 } // namespace tincan::sip

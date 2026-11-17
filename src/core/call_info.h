@@ -4,6 +4,7 @@
 #pragma once
 
 #include <QDateTime>
+#include <QMap>
 #include <QString>
 
 namespace tincan {
@@ -22,6 +23,16 @@ struct CallInfo {
     int lastStatusCode = 0;
     QString lastReason;
     QDateTime connectedAt;
+
+    bool localHold = false;
+    bool remoteHold = false;
+    bool muted = false;
+    bool recording = false;
+    bool inConference = false;
+    int transferStatus = 0;
+    float rxLevel = 1.0f;
+    float txLevel = 1.0f;
+    QMap<QString, QString> incomingHeaders;
 
     bool isIncomingRinging() const {
         return direction == CallDirection::Incoming &&

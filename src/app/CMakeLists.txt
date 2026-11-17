@@ -7,8 +7,14 @@ add_library(tincan_app STATIC
     app_paths.cpp
     audio_service.h
     audio_service.cpp
+    auto_answer_policy.cpp
     call_service.h
     call_service.cpp
+    call_tone_controller.cpp
+    forwarding_policy.cpp
+    incoming_call_coordinator.h
+    incoming_call_coordinator.cpp
+    recording_namer.cpp
     secret_store.cpp
     settings_store.cpp
 )

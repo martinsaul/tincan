@@ -13,10 +13,9 @@
 
 namespace tincan::sip {
 
-class CallRegistry;
+class CallController;
 class EventMarshaller;
 class SipAccount;
-class SipCall;
 class SipEndpoint;
 class TonePlayer;
 
@@ -38,7 +37,18 @@ public:
     int makeCall(const QString &accountId, const QString &uri, QString *error) override;
     bool answer(int callId) override;
     bool reject(int callId, int statusCode) override;
+    bool redirect(int callId, const QString &uri) override;
     bool hangup(int callId) override;
+    bool setHold(int callId, bool hold) override;
+    bool setMute(int callId, bool mute) override;
+    bool sendDtmf(int callId, const QString &digits, DtmfMethod method) override;
+    bool transferBlind(int callId, const QString &uri) override;
+    bool transferAttended(int callId, int targetCallId) override;
+    bool conference(const QList<int> &callIds) override;
+    bool unconference(int callId) override;
+    bool startRecording(int callId, const QString &wavPath) override;
+    void stopRecording(int callId) override;
+    bool setCallVolume(int callId, float rxLevel, float txLevel) override;
     QList<CallInfo> calls() const override;
 
     QList<AudioDevice> audioDevices() const override;
@@ -53,14 +63,13 @@ public:
     void stopTone() override;
 
 private:
-    void handleIncomingCallOnMainThread(std::unique_ptr<SipCall> call, const CallInfo &info);
-    void handleCallStateOnMainThread(const SipCall *call, const CallInfo &info);
+    QString resolveUriForAccount(const QString &accountId, const QString &uri) const;
 
     ISipEvents &events_;
     std::unique_ptr<EventMarshaller> marshaller_;
     std::unique_ptr<SipEndpoint> endpoint_;
     std::unique_ptr<TonePlayer> tonePlayer_;
-    std::unique_ptr<CallRegistry> calls_;
+    std::unique_ptr<CallController> callController_;
     std::map<QString, std::unique_ptr<SipAccount>> accounts_;
 };
 

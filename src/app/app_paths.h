@@ -11,6 +11,7 @@ class AppPaths {
 public:
     static QString configDir();
     static QString dataDir();
+    static QString recordingsDir();
 };
 
 } // namespace tincan

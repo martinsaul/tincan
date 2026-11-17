@@ -9,6 +9,7 @@ configure_file(
 
 add_library(tincan_core STATIC
     account_config.cpp
+    sip_headers.cpp
     sip_uri.cpp
     version.cpp
 )

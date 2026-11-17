@@ -146,6 +146,52 @@ private slots:
                  (QStringList{QStringLiteral("opus/48000/2"), QStringLiteral("PCMU/8000/1")}));
         QCOMPARE(aud.disabledCodecs, (QStringList{QStringLiteral("PCMA/8000/1")}));
     }
+
+    void roundTripsCallSettingsAndDefaultsRecordingsDir() {
+        QTemporaryDir tempDir;
+        QVERIFY(tempDir.isValid());
+        const QString iniPath = tempDir.filePath(QStringLiteral("tincan.ini"));
+
+        {
+            tincan::SettingsStore defaultsReader(iniPath);
+            const tincan::CallSettings def = defaultsReader.callSettings();
+            QCOMPARE(def.dtmfMethod, tincan::DtmfMethod::Rfc4733);
+            QCOMPARE(def.autoAnswerMode, tincan::AutoAnswerMode::Off);
+            QVERIFY(!def.recordingsDir.isEmpty());
+            QVERIFY(def.recordingsDir.endsWith(QStringLiteral("Tincan")) ||
+                    def.recordingsDir.endsWith(QStringLiteral("Recordings")));
+        }
+
+        const QString customRecDir = tempDir.filePath(QStringLiteral("recs"));
+        {
+            tincan::SettingsStore writer(iniPath);
+            tincan::CallSettings cs;
+            cs.dtmfMethod = tincan::DtmfMethod::SipInfo;
+            cs.autoAnswerMode = tincan::AutoAnswerMode::HeaderOnly;
+            cs.autoAnswerDelaySec = 4;
+            cs.dnd = true;
+            cs.forwardAlways = QStringLiteral("sip:fwd1@example.org");
+            cs.forwardOnBusy = QStringLiteral("sip:fwd2@example.org");
+            cs.forwardOnNoAnswer = QStringLiteral("sip:fwd3@example.org");
+            cs.forwardNoAnswerSec = 20;
+            cs.recordingsDir = customRecDir;
+            cs.autoRecord = true;
+            writer.setCallSettings(cs);
+        }
+
+        tincan::SettingsStore reader(iniPath);
+        const tincan::CallSettings loaded = reader.callSettings();
+        QCOMPARE(loaded.dtmfMethod, tincan::DtmfMethod::SipInfo);
+        QCOMPARE(loaded.autoAnswerMode, tincan::AutoAnswerMode::HeaderOnly);
+        QCOMPARE(loaded.autoAnswerDelaySec, 4);
+        QCOMPARE(loaded.dnd, true);
+        QCOMPARE(loaded.forwardAlways, QStringLiteral("sip:fwd1@example.org"));
+        QCOMPARE(loaded.forwardOnBusy, QStringLiteral("sip:fwd2@example.org"));
+        QCOMPARE(loaded.forwardOnNoAnswer, QStringLiteral("sip:fwd3@example.org"));
+        QCOMPARE(loaded.forwardNoAnswerSec, 20);
+        QCOMPARE(loaded.recordingsDir, customRecDir);
+        QCOMPARE(loaded.autoRecord, true);
+    }
 };
 
 QTEST_GUILESS_MAIN(TestSettingsStore)

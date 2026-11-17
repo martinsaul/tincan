@@ -12,6 +12,8 @@
 
 #include <memory>
 
+class QAction;
+
 namespace tincan::ui {
 
 class MainWindow;
@@ -25,9 +27,11 @@ public:
 
     void show();
     QSystemTrayIcon &systemTrayIcon();
+    QAction *dndAction() const;
 
 private:
     void refreshRegistrationState();
+    void refreshDndAction(bool enabled);
     void toggleMainWindow();
     void onActivated(QSystemTrayIcon::ActivationReason reason);
     void onMissedCall(const CallInfo &info);
@@ -36,6 +40,7 @@ private:
     CallService &callService_;
     MainWindow &mainWindow_;
     std::unique_ptr<QMenu> menu_;
+    QAction *dndAction_ = nullptr;
     QSystemTrayIcon tray_;
 };
 
