@@ -27,9 +27,15 @@ public:
     bool stop(int callId, SipCall *call);
     void stopAll();
     bool isRecording(int callId) const;
+    // Re-links the call's audio and, unless the call is muted, the
+    // microphone to its recorder. Call after media or mute changes.
     void syncCallMedia(int callId, SipCall &call);
+    // True if the microphone currently feeds the call's recorder.
+    bool isCaptureRecorded(int callId) const;
 
 private:
+    void routeCapture(pj::AudioMediaRecorder &recorder, const SipCall &call);
+
     SipEndpoint &endpoint_;
     std::map<int, std::unique_ptr<pj::AudioMediaRecorder>> recorders_;
 };

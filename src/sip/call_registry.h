@@ -22,7 +22,11 @@ public:
     CallRegistry &operator=(const CallRegistry &) = delete;
 
     void insert(int callId, std::unique_ptr<SipCall> call);
+    // The live call for `callId`; a disconnected call awaiting removal is not
+    // returned, because pjsua may already have given its id to a new call.
     SipCall *find(int callId) const;
+    // True if the slot holds exactly `call`, live or disconnected.
+    bool holds(int callId, const SipCall *call) const;
     void erase(int callId);
     // Erases only if the slot still holds `call` (PJSIP reuses call ids).
     void eraseIfSame(int callId, const SipCall *call);

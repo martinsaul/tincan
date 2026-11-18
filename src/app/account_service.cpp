@@ -6,6 +6,8 @@
 #include <QPointer>
 #include <QUuid>
 
+#include <algorithm>
+
 namespace tincan {
 
 namespace {
@@ -128,6 +130,10 @@ bool AccountService::updateAccount(const AccountConfig &config, QString *error) 
         setOutError(error, tr("Domain is required."));
         return false;
     }
+    if (hasActiveCalls(config.id)) {
+        setOutError(error, activeCallsError());
+        return false;
+    }
 
     ++accountRevisions_[config.id];
     const QString keptPassword = accounts_[idx].password;
@@ -152,10 +158,27 @@ bool AccountService::updateAccount(const AccountConfig &config, QString *error) 
     return ok;
 }
 
-void AccountService::removeAccount(const QString &accountId) {
+QString AccountService::activeCallsError() {
+    return tr("This account has calls in progress. End them before changing or removing "
+              "the account.");
+}
+
+bool AccountService::hasActiveCalls(const QString &accountId) const {
+    const QList<CallInfo> calls = engine_.calls();
+    return std::any_of(calls.cbegin(), calls.cend(), [&accountId](const CallInfo &call) {
+        return call.accountId == accountId && call.state != CallState::Disconnected;
+    });
+}
+
+bool AccountService::removeAccount(const QString &accountId, QString *error) {
     const qsizetype idx = findAccountIndex(accountId);
     if (idx < 0) {
-        return;
+        setOutError(error, tr("Account not found."));
+        return false;
+    }
+    if (hasActiveCalls(accountId)) {
+        setOutError(error, activeCallsError());
+        return false;
     }
 
     ++accountRevisions_[accountId];
@@ -172,6 +195,7 @@ void AccountService::removeAccount(const QString &accountId) {
         emit defaultAccountChanged(defaultAccountId_);
     }
     emit accountsChanged();
+    return true;
 }
 
 RegistrationInfo AccountService::registrationInfo(const QString &accountId) const {

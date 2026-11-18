@@ -4,6 +4,7 @@
 #include "sip/sip_call.h"
 
 #include "sip/call_info_mapper.h"
+#include "sip/call_slot.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -27,6 +28,18 @@ SipCall::SipCall(pj::Endpoint &endpoint, pj::Account &account, QString accountId
 
 SipCall::~SipCall() {
     stopInbandDtmf();
+    if (disconnected_.load()) {
+        // The id may already belong to a new call; keep ~Call away from it.
+        forgetCallSlot(*this);
+    }
+}
+
+bool SipCall::isDisconnected() const {
+    return disconnected_.load();
+}
+
+bool SipCall::isMuted() const {
+    return muted_.load();
 }
 
 void SipCall::onCreateMediaTransport(pj::OnCreateMediaTransportParam &prm) {
@@ -43,6 +56,9 @@ void SipCall::onCallState(pj::OnCallStateParam &prm) {
             qint64 expected = 0;
             const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
             connectedAtMs_.compare_exchange_strong(expected, nowMs);
+        }
+        if (pjInfo.state == PJSIP_INV_STATE_DISCONNECTED) {
+            disconnected_.store(true);
         }
 
         const CallInfo info = snapshot();
@@ -145,6 +161,9 @@ void SipCall::onCallReplaced(pj::OnCallReplacedParam &prm) {
 }
 
 bool SipCall::setHoldState(bool hold) {
+    if (disconnected_.load()) {
+        return false;
+    }
     try {
         if (hold) {
             pj::CallOpParam prm;
@@ -188,6 +207,9 @@ bool SipCall::isCaptureConnected() const {
 }
 
 void SipCall::applyCaptureRouting() {
+    if (disconnected_.load()) {
+        return;
+    }
     pj::CallInfo pjInfo;
     try {
         pjInfo = getInfo();
@@ -213,7 +235,7 @@ void SipCall::applyCaptureRouting() {
 }
 
 bool SipCall::sendDtmfDigits(const QString &digits, DtmfMethod method) {
-    if (digits.isEmpty()) {
+    if (digits.isEmpty() || disconnected_.load()) {
         return false;
     }
     if (method == DtmfMethod::InBand) {
@@ -292,7 +314,7 @@ void SipCall::stopInbandDtmf() {
 }
 
 bool SipCall::tryGetAudioMedia(pj::AudioMedia *outMedia) const {
-    if (outMedia == nullptr) {
+    if (outMedia == nullptr || disconnected_.load()) {
         return false;
     }
     try {

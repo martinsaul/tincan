@@ -9,6 +9,8 @@
 #include <QDir>
 #include <QFileInfo>
 
+#include <algorithm>
+
 namespace tincan::sip {
 
 CallRecorder::CallRecorder(SipEndpoint &endpoint) : endpoint_(endpoint) {}
@@ -33,7 +35,7 @@ bool CallRecorder::start(int callId, SipCall &call, const QString &wavPath) {
     try {
         auto recorder = std::make_unique<pj::AudioMediaRecorder>();
         recorder->createRecorder(trimmed.toStdString());
-        endpoint_.pjEndpoint().audDevManager().getCaptureDevMedia().startTransmit(*recorder);
+        routeCapture(*recorder, call);
 
         pj::AudioMedia callAudio;
         if (call.tryGetAudioMedia(&callAudio)) {
@@ -96,12 +98,43 @@ void CallRecorder::syncCallMedia(int callId, SipCall &call) {
         return;
     }
 
+    routeCapture(*it->second, call);
     pj::AudioMedia callAudio;
     if (call.tryGetAudioMedia(&callAudio)) {
         try {
             callAudio.startTransmit(*it->second);
         } catch (const pj::Error &) {
         }
+    }
+}
+
+void CallRecorder::routeCapture(pj::AudioMediaRecorder &recorder, const SipCall &call) {
+    // The recording follows what the far end hears from us: muted spans are
+    // silent on our side instead of capturing the microphone.
+    try {
+        pj::AudioMedia &capture = endpoint_.pjEndpoint().audDevManager().getCaptureDevMedia();
+        if (call.isMuted()) {
+            capture.stopTransmit(recorder);
+        } else {
+            capture.startTransmit(recorder);
+        }
+    } catch (const pj::Error &) {
+    }
+}
+
+bool CallRecorder::isCaptureRecorded(int callId) const {
+    const auto it = recorders_.find(callId);
+    if (it == recorders_.end() || !endpoint_.isStarted()) {
+        return false;
+    }
+    try {
+        const int recorderPort = it->second->getPortId();
+        const pj::ConfPortInfo capture =
+            endpoint_.pjEndpoint().audDevManager().getCaptureDevMedia().getPortInfo();
+        return std::find(capture.listeners.begin(), capture.listeners.end(), recorderPort) !=
+               capture.listeners.end();
+    } catch (const pj::Error &) {
+        return false;
     }
 }
 

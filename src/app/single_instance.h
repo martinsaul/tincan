@@ -17,7 +17,10 @@ namespace tincan {
 
 // Ensures one Tincan process per user. The first process listens on a
 // user-private local socket; later processes forward their CommandLine to it
-// (length-prefixed JSON, acknowledged by the primary) and exit.
+// (length-prefixed JSON, acknowledged by the primary) and exit. The socket
+// lives in a directory only this user can enter, both ends check that the
+// peer runs as the same user, and a lock file serialises start-up so two
+// processes launched together cannot both become primary.
 class SingleInstance : public QObject {
     Q_OBJECT
 
@@ -37,6 +40,8 @@ public:
     QString serverName() const;
     QString errorString() const;
 
+    // $XDG_RUNTIME_DIR/tincan-<uid> if that directory is private, else a
+    // 0700 directory under the user's cache dir. Empty if neither is usable.
     static QString defaultServerName();
     static QByteArray encodeFrame(const QByteArray &payload);
 
@@ -44,9 +49,11 @@ signals:
     void commandReceived(const tincan::CommandLine &command);
 
 private:
-    enum class ForwardResult { Acked, NoServer, NoAck };
+    enum class ForwardResult { Acked, NoServer, NoAck, WrongUser };
 
+    Role startLocked(const CommandLine &command, int ackTimeoutMs);
     ForwardResult forward(const CommandLine &command, int ackTimeoutMs);
+    QString lockFilePath() const;
     bool listen();
     void onNewConnection();
     void onClientReadyRead(QLocalSocket *socket);

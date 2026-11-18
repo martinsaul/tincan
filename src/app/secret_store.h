@@ -38,6 +38,11 @@ public:
     void deletePassword(const QString &accountId, DeleteCallback callback = {}) override;
     bool backendUnavailable() const override;
 
+    // True only for "no secret backend at all". Other failures, such as a
+    // cancelled unlock prompt (QKeychain::OtherError), are ordinary errors and
+    // must not open the plaintext config-file fallback.
+    static bool isMissingBackendError(int keychainError);
+
 private:
     void noteError(int keychainError);
 

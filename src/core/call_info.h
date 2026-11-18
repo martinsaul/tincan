@@ -29,6 +29,7 @@ struct CallInfo {
     bool muted = false;
     bool micConnected = false; // capture device currently feeds this call
     bool recording = false;
+    bool micRecorded = false; // capture device currently feeds the recording
     bool inConference = false;
     int transferStatus = 0;
     float rxLevel = 1.0f;

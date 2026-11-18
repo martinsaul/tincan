@@ -2,6 +2,29 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="pt_BR">
 <context>
+    <name>PrivateDirectory</name>
+    <message>
+        <source>%1 does not exist.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 is not a directory.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 is owned by another user.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 is accessible to other users.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cannot create %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>QObject</name>
     <message>
         <source>%1  [Default]</source>
@@ -24,6 +47,10 @@
     </message>
     <message>
         <source>Account not found.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This account has calls in progress. End them before changing or removing the account.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -77,10 +104,6 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Number or sip:, sips:, tel:, callto: URI to dial.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Only one dial target may be given.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -106,6 +129,10 @@
     </message>
     <message>
         <source>Tincan %1 - lightweight SIP softphone for Linux</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Number or sip:, sips:, tel:, callto: URI to put in the dial field.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -176,6 +203,18 @@
         <source>The running Tincan instance did not respond.</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>No private directory is available for the instance socket.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Another Tincan instance is starting.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The instance socket belongs to another user.</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>tincan::ui::AboutDialog</name>
@@ -216,10 +255,6 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>QtKeychain, BSD-3-Clause</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Opus audio codec, BSD-3-Clause</source>
         <translation type="unfinished"></translation>
     </message>
@@ -229,6 +264,10 @@
     </message>
     <message>
         <source>Inspired by MicroSIP (%1); not affiliated.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>QtKeychain, BSD-2-Clause</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -359,6 +398,14 @@
     </message>
     <message>
         <source>Account Error</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Account In Use</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This account has calls in progress. End them before changing or removing the account.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

@@ -28,6 +28,8 @@ private:
     void onEditClicked();
     void onRemoveClicked();
     void onMakeDefaultClicked();
+    // Explains and returns true if the account has calls in progress.
+    bool refuseWhileInCall(const QString &accountId);
 
     AccountService &accountService_;
     ISecretStore &secretStore_;

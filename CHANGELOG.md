@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- The single-instance socket no longer falls back to a shared directory such
+  as `/tmp` when `XDG_RUNTIME_DIR` is unset. It now uses a 0700 directory
+  under the user's cache directory, both ends verify the peer's user id, and
+  concurrent start-ups no longer race to replace each other's socket.
+- A failed or cancelled keychain unlock no longer offers to store the
+  password in the config file; only a missing Secret Service does.
+
+### Fixed
+
+- Deleting a finished call can no longer detach or hang up a new call that
+  reused its call id. The bundled PJSIP build now allows 32 calls (was 4);
+  rebuild it with `tools/build-pjproject.sh --force`.
+- Call recordings no longer capture the microphone while the call is muted.
+- Accounts cannot be edited or removed while they have calls in progress.
+
 ## [0.1.0] - 2026-11-16
 
 First public release.

@@ -44,6 +44,10 @@ public:
     void onCallReplaced(pj::OnCallReplacedParam &prm) override;
     void onCreateMediaTransport(pj::OnCreateMediaTransportParam &prm) override;
 
+    // True once PJSIP has reported DISCONNECTED. pjsua may then reuse the call
+    // id for a new call, so this object must no longer act on PJSIP state.
+    bool isDisconnected() const;
+    bool isMuted() const;
     bool setHoldState(bool hold);
     bool setMuted(bool mute);
     // Main thread only: connects the microphone to active audio unless muted.
@@ -73,6 +77,7 @@ private:
     QMap<QString, QString> incomingHeaders_;
     std::atomic<qint64> connectedAtMs_{0};
     std::atomic<bool> muted_{false};
+    std::atomic<bool> disconnected_{false};
     std::atomic<int> transferStatus_{0};
     std::atomic<float> rxLevel_{1.0f};
     std::atomic<float> txLevel_{1.0f};

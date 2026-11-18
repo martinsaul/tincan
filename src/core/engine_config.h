@@ -16,6 +16,8 @@ struct EngineConfig {
     bool nullAudio = false;
     QString userAgent;
     int logLevel = 3;
+    // Simultaneous-call pool size; 0 uses the whole pool PJSIP was built with.
+    int maxCalls = 0;
     QString logFile;
 };
 

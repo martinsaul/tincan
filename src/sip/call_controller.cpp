@@ -162,6 +162,7 @@ bool CallController::setMute(int callId, bool mute) {
     if (call == nullptr || !call->setMuted(mute)) {
         return false;
     }
+    recorder_->syncCallMedia(callId, *call);
     notifySnapshotChanged(callId);
     return true;
 }
@@ -273,6 +274,7 @@ void CallController::clearAll() { calls_->clear(); }
 
 CallInfo CallController::enrichCallInfo(CallInfo info) const {
     info.recording = recorder_->isRecording(info.callId);
+    info.micRecorded = recorder_->isCaptureRecorded(info.callId);
     info.inConference = conference_->isMember(info.callId);
     return info;
 }
@@ -296,9 +298,10 @@ void CallController::handleChildCallOnMainThread(std::unique_ptr<SipCall> call,
 
 void CallController::handleCallStateOnMainThread(const SipCall *call, const CallInfo &info) {
     if (info.state == CallState::Disconnected) {
-        SipCall *registered = calls_->find(info.callId);
-        if (registered == call) {
-            (void)recorder_->stop(info.callId, registered);
+        if (calls_->holds(info.callId, call)) {
+            // The call's media is gone already; only the recorder's own
+            // capture link is left to undo.
+            (void)recorder_->stop(info.callId, nullptr);
             const QList<int> exConfIds = conference_->removeDisconnected(info.callId);
             calls_->eraseIfSame(info.callId, call);
             for (const int remId : exConfIds) {

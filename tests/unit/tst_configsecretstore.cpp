@@ -5,6 +5,8 @@
 #include "app/fallback_secret_store.h"
 #include "app/settings_store.h"
 
+#include <qt6keychain/keychain.h>
+
 #include <QFile>
 #include <QTemporaryDir>
 #include <QTest>
@@ -166,6 +168,17 @@ private slots:
         QCOMPARE(keychain.peekPassword(QStringLiteral("acc")), QStringLiteral("pw"));
         QCOMPARE(prompts, 0);
         QCOMPARE(settings.secretFallbackChoice(), tincan::SecretFallbackChoice::Undecided);
+    }
+
+    void onlyMissingBackendAllowsFileFallback() {
+        using tincan::KeychainSecretStore;
+        QVERIFY(KeychainSecretStore::isMissingBackendError(QKeychain::NoBackendAvailable));
+        // A cancelled or failed unlock is an ordinary error, not a missing backend.
+        QVERIFY(!KeychainSecretStore::isMissingBackendError(QKeychain::OtherError));
+        QVERIFY(!KeychainSecretStore::isMissingBackendError(QKeychain::AccessDenied));
+        QVERIFY(!KeychainSecretStore::isMissingBackendError(QKeychain::AccessDeniedByUser));
+        QVERIFY(!KeychainSecretStore::isMissingBackendError(QKeychain::EntryNotFound));
+        QVERIFY(!KeychainSecretStore::isMissingBackendError(QKeychain::NoError));
     }
 };
 

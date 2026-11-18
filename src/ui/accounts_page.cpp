@@ -116,7 +116,7 @@ void AccountsPage::onAddClicked() {
 void AccountsPage::onEditClicked() {
     const QString id = selectedAccountId();
     const auto existing = accountService_.account(id);
-    if (!existing.has_value()) {
+    if (!existing.has_value() || refuseWhileInCall(id)) {
         return;
     }
 
@@ -138,9 +138,23 @@ void AccountsPage::onEditClicked() {
 
 void AccountsPage::onRemoveClicked() {
     const QString id = selectedAccountId();
-    if (!id.isEmpty()) {
-        accountService_.removeAccount(id);
+    if (id.isEmpty() || refuseWhileInCall(id)) {
+        return;
     }
+    QString err;
+    if (!accountService_.removeAccount(id, &err) && !err.isEmpty()) {
+        QMessageBox::warning(this, tr("Account Error"), err);
+    }
+}
+
+bool AccountsPage::refuseWhileInCall(const QString &accountId) {
+    if (!accountService_.hasActiveCalls(accountId)) {
+        return false;
+    }
+    QMessageBox::information(this, tr("Account In Use"),
+                             tr("This account has calls in progress. End them before "
+                                "changing or removing the account."));
+    return true;
 }
 
 void AccountsPage::onMakeDefaultClicked() {

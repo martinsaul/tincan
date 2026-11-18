@@ -102,6 +102,44 @@ private slots:
         QCOMPARE(engine.activeAccounts.value(QStringLiteral("main")).password,
                  QStringLiteral("pw1"));
     }
+
+    void refusesChangesWhileAccountHasCalls() {
+        QTemporaryDir tempDir;
+        tincan::SettingsStore settings(tempDir.filePath(QStringLiteral("tincan.ini")));
+        tincan::MemorySecretStore secrets;
+        tincan::test::FakeSipEngine engine;
+        tincan::AccountService service(engine, settings, secrets);
+        tincan::AccountConfig acc;
+        acc.id = QStringLiteral("busy");
+        acc.domain = QStringLiteral("sip.test");
+        QVERIFY(service.addAccount(acc));
+        tincan::AccountConfig other = acc;
+        other.id = QStringLiteral("idle");
+        QVERIFY(service.addAccount(other));
+
+        const int callId = engine.makeCall(acc.id, QStringLiteral("sip:100@sip.test"), nullptr);
+        QVERIFY(callId >= 0);
+        QVERIFY(service.hasActiveCalls(acc.id));
+        QVERIFY(!service.hasActiveCalls(other.id));
+
+        acc.displayName = QStringLiteral("Renamed");
+        QString error;
+        QVERIFY(!service.updateAccount(acc, &error));
+        QVERIFY(!error.isEmpty());
+        error.clear();
+        QVERIFY(!service.removeAccount(acc.id, &error));
+        QVERIFY(!error.isEmpty());
+        QVERIFY(service.account(acc.id).has_value());
+        QVERIFY(engine.activeAccounts.contains(acc.id));
+        // Accounts without calls stay editable.
+        QVERIFY(service.removeAccount(other.id));
+
+        engine.injectCallState(callId, tincan::CallState::Disconnected);
+        QVERIFY(!service.hasActiveCalls(acc.id));
+        QVERIFY(service.updateAccount(acc));
+        QVERIFY(service.removeAccount(acc.id));
+        QVERIFY(!service.account(acc.id).has_value());
+    }
 };
 
 QTEST_GUILESS_MAIN(TestAccountService)

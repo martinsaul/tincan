@@ -15,9 +15,12 @@ KeychainSecretStore::KeychainSecretStore(QString serviceName)
 
 bool KeychainSecretStore::backendUnavailable() const { return backendUnavailable_; }
 
+bool KeychainSecretStore::isMissingBackendError(int keychainError) {
+    return keychainError == QKeychain::NoBackendAvailable;
+}
+
 void KeychainSecretStore::noteError(int keychainError) {
-    backendUnavailable_ = keychainError == QKeychain::NoBackendAvailable ||
-                          keychainError == QKeychain::OtherError;
+    backendUnavailable_ = isMissingBackendError(keychainError);
 }
 
 void KeychainSecretStore::readPassword(const QString &accountId, ReadCallback callback) {

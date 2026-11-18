@@ -37,6 +37,8 @@ add_library(tincan_app STATIC
     notification_backend.h
     notifier.h
     notifier.cpp
+    private_directory.h
+    private_directory.cpp
     recording_namer.cpp
     secret_store.cpp
     settings_store.cpp

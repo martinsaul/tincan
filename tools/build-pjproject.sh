@@ -66,6 +66,11 @@ prepare_source() {
 #define PJMEDIA_HAS_VIDEO 0
 #define PJ_HAS_IPV6 1
 
+/* pjsua recycles call slots, and pjsua2 keeps a Call's id after it has
+ * disconnected. A larger pool makes reuse of a just-freed slot rare; the
+ * SipCall destructor is also safe against reuse on its own. */
+#define PJSUA_MAX_CALLS 32
+
 #endif
 EOF
 }

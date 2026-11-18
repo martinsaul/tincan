@@ -30,10 +30,12 @@ pj::EpConfig buildEpConfig(const EngineConfig &config) {
     pj::EpConfig epCfg;
     epCfg.uaConfig.threadCnt = 1;
     epCfg.uaConfig.mainThreadOnly = false;
-    // Use the whole compile-time pool (PJSUA_MAX_CALLS, 4 unless raised in
+    // By default use the whole compile-time pool (PJSUA_MAX_CALLS, raised in
     // config_site.h): pjsua hands out ids round-robin, so a larger pool makes
     // it rarer that an id is reused while the old call's removal is queued.
-    epCfg.uaConfig.maxCalls = PJSUA_MAX_CALLS;
+    const int maxCalls = config.maxCalls > 0 ? std::min(config.maxCalls, PJSUA_MAX_CALLS)
+                                              : PJSUA_MAX_CALLS;
+    epCfg.uaConfig.maxCalls = static_cast<unsigned>(maxCalls);
     const QString ua = config.userAgent.trimmed().isEmpty()
                            ? QStringLiteral("Tincan/") + Version::string()
                            : config.userAgent.trimmed();

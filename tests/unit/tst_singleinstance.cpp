@@ -3,7 +3,11 @@
 
 #include "app/single_instance.h"
 
+#include "app/private_directory.h"
+
+#include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QLocalServer>
 #include <QLocalSocket>
 #include <QSignalSpy>
@@ -47,6 +51,35 @@ bool createStaleSocket(const QString &path) {
     return ok && QFile::exists(path);
 }
 
+// Restores the XDG variables a test overrides.
+class EnvGuard {
+public:
+    EnvGuard()
+        : runtime_(qgetenv("XDG_RUNTIME_DIR")), cache_(qgetenv("XDG_CACHE_HOME")),
+          hadRuntime_(qEnvironmentVariableIsSet("XDG_RUNTIME_DIR")),
+          hadCache_(qEnvironmentVariableIsSet("XDG_CACHE_HOME")) {}
+    ~EnvGuard() {
+        restore("XDG_RUNTIME_DIR", hadRuntime_, runtime_);
+        restore("XDG_CACHE_HOME", hadCache_, cache_);
+    }
+    EnvGuard(const EnvGuard &) = delete;
+    EnvGuard &operator=(const EnvGuard &) = delete;
+
+private:
+    static void restore(const char *name, bool had, const QByteArray &value) {
+        if (had) {
+            qputenv(name, value);
+        } else {
+            qunsetenv(name);
+        }
+    }
+
+    QByteArray runtime_;
+    QByteArray cache_;
+    bool hadRuntime_;
+    bool hadCache_;
+};
+
 } // namespace
 
 class TestSingleInstance : public QObject {
@@ -54,8 +87,59 @@ class TestSingleInstance : public QObject {
 
 private slots:
     void defaultNameIsPerUser() {
+        QTemporaryDir cache;
+        const EnvGuard guard;
+        qunsetenv("XDG_RUNTIME_DIR");
+        qputenv("XDG_CACHE_HOME", cache.path().toUtf8());
         const QString name = SingleInstance::defaultServerName();
-        QVERIFY(name.endsWith(QStringLiteral("tincan-%1").arg(::getuid())));
+        QVERIFY(name.endsWith(QStringLiteral("tincan-%1").arg(::geteuid())));
+    }
+
+    void defaultNameUsesPrivateRuntimeDir() {
+        QTemporaryDir runtime; // QTemporaryDir is created 0700
+        QVERIFY(runtime.isValid());
+        const EnvGuard guard;
+        qputenv("XDG_RUNTIME_DIR", runtime.path().toUtf8());
+        QCOMPARE(QFileInfo(SingleInstance::defaultServerName()).absolutePath(),
+                 QFileInfo(runtime.path()).absoluteFilePath());
+    }
+
+    void defaultNameFallsBackToPrivateCacheDir() {
+        QTemporaryDir cache;
+        QVERIFY(cache.isValid());
+        const EnvGuard guard;
+        qunsetenv("XDG_RUNTIME_DIR");
+        qputenv("XDG_CACHE_HOME", cache.path().toUtf8());
+        const QString name = SingleInstance::defaultServerName();
+        const QString dir = QFileInfo(name).absolutePath();
+        QVERIFY2(dir.startsWith(cache.path()), qPrintable(name));
+        QVERIFY(tincan::PrivateDirectory::isPrivate(dir));
+    }
+
+    void sharedRuntimeDirIsNotUsed() {
+        QTemporaryDir runtime;
+        QTemporaryDir cache;
+        QVERIFY(QFile::setPermissions(runtime.path(),
+                                      QFile::permissions(runtime.path()) | QFile::ExeOther));
+        const EnvGuard guard;
+        qputenv("XDG_RUNTIME_DIR", runtime.path().toUtf8());
+        qputenv("XDG_CACHE_HOME", cache.path().toUtf8());
+        QVERIFY(SingleInstance::defaultServerName().startsWith(cache.path()));
+    }
+
+    void refusesSharedFallbackDir() {
+        QTemporaryDir cache;
+        const QString ipc = cache.filePath(QStringLiteral("tincan/ipc"));
+        QVERIFY(QDir().mkpath(ipc));
+        QVERIFY(QFile::setPermissions(ipc, QFile::permissions(ipc) | QFile::ReadOther |
+                                               QFile::ExeOther));
+        const EnvGuard guard;
+        qunsetenv("XDG_RUNTIME_DIR");
+        qputenv("XDG_CACHE_HOME", cache.path().toUtf8());
+        QVERIFY(SingleInstance::defaultServerName().isEmpty());
+        SingleInstance instance(QString{});
+        QCOMPARE(instance.start(CommandLine{}), SingleInstance::Role::Failed);
+        QVERIFY(!instance.errorString().isEmpty());
     }
 
     void secondInstanceForwardsToFirst() {

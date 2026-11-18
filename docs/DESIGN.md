@@ -104,10 +104,19 @@ PJSIP runs its own worker thread (`threadCnt = 1`) and calls pjsua2
 callbacks on it. Those callbacks never touch Qt objects directly.
 `EventMarshaller` copies callback data into core value types and posts
 them to the Qt main thread with queued `QMetaObject::invokeMethod`.
-All commands from the UI run on the Qt main thread, which is registered
-with pjlib at start-up (`libRegisterThread`). A pjsua2 `Call` object is
-deleted only after its DISCONNECTED event has been delivered to the main
-thread, never inside its own callback.
+All commands from the UI run on the Qt main thread. That thread calls
+`Endpoint::libCreate()`, and pjlib registers the thread that initialises
+it, so no explicit `libRegisterThread` call is needed. A pjsua2 `Call`
+object is deleted only after its DISCONNECTED event has been delivered to
+the main thread, never inside its own callback. pjsua may hand a
+disconnected call's id to a new call before that happens, so a
+disconnected `SipCall` stops acting on PJSIP and forgets its call id before
+`pj::Call`'s destructor runs; otherwise that destructor would detach, and
+could hang up, the new call.
+
+The microphone is connected to calls and to call recordings only on the
+main thread. While a call is muted, its recording gets no microphone audio,
+so muted spans are silent on our side.
 
 ### Data
 
@@ -116,6 +125,10 @@ thread, never inside its own callback.
   table and forward-only migrations.
 - Recordings: `$XDG_MUSIC_DIR/Tincan` by default, configurable.
 - Passwords: Secret Service via QtKeychain, keyed by account id.
+- Single-instance socket: `$XDG_RUNTIME_DIR/tincan-<uid>` when that
+  directory is private to the user, else `$XDG_CACHE_HOME/tincan/ipc/`
+  (created 0700; refused if another user owns it or it is shared). Both
+  ends check the peer uid with `SO_PEERCRED`.
 
 ## Code rules
 - Files under ~400 lines (hard cap 800). Functions under ~40 lines (hard

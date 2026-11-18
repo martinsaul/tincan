@@ -8,6 +8,8 @@ add_library(tincan_sip STATIC
     call_info_mapper.cpp
     call_recorder.cpp
     call_registry.cpp
+    call_slot.h
+    call_slot.cpp
     conference_bridge.cpp
     event_marshaller.h
     event_marshaller.cpp

@@ -7,6 +7,8 @@
 #include "recording_events.h"
 #include "sip/pjsip_engine.h"
 
+#include <QFileInfo>
+#include <QTemporaryDir>
 #include <QTest>
 
 #include <memory>
@@ -73,6 +75,40 @@ private slots:
         QTRY_VERIFY_WITH_TIMEOUT(micConnected(callId), 2000);
         QVERIFY(engine_->hangup(callId));
         QTRY_VERIFY_WITH_TIMEOUT(engine_->calls().isEmpty(), 5000);
+    }
+
+    // While muted, the microphone must not feed the call recording either;
+    // muted spans are recorded as silence on our side.
+    void recordingSilentWhileMuted() {
+        tincan::test::PjsuaPeer peer;
+        QVERIFY2(peer.start(200, 30), qPrintable(peer.output()));
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QString error;
+        const int callId = engine_->makeCall(QStringLiteral("local"), peer.sipUri(), &error);
+        QVERIFY2(callId >= 0, qPrintable(error));
+        QTRY_VERIFY_WITH_TIMEOUT(micConnected(callId), 10000);
+
+        QVERIFY(engine_->startRecording(callId, dir.filePath(QStringLiteral("call.wav"))));
+        QTRY_VERIFY_WITH_TIMEOUT(callInfo(callId).micRecorded, 2000);
+        QVERIFY(engine_->setMute(callId, true));
+        QTRY_VERIFY_WITH_TIMEOUT(!callInfo(callId).micRecorded, 2000);
+
+        // A re-INVITE re-syncs the recorder; it must stay off the microphone.
+        events_->clear();
+        QVERIFY(engine_->setHold(callId, true));
+        QTRY_VERIFY_WITH_TIMEOUT(callInfo(callId).localHold, 10000);
+        QVERIFY(engine_->setHold(callId, false));
+        QTRY_VERIFY_WITH_TIMEOUT(resumedEventSeen(callId), 10000);
+        QTest::qWait(500);
+        QVERIFY2(!callInfo(callId).micRecorded, "recording picked up the muted microphone");
+
+        QVERIFY(engine_->setMute(callId, false));
+        QTRY_VERIFY_WITH_TIMEOUT(callInfo(callId).micRecorded, 2000);
+        engine_->stopRecording(callId);
+        QVERIFY(engine_->hangup(callId));
+        QTRY_VERIFY_WITH_TIMEOUT(engine_->calls().isEmpty(), 5000);
+        QVERIFY(QFileInfo(dir.filePath(QStringLiteral("call.wav"))).size() > 0);
     }
 
 private:

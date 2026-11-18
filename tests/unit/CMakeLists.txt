@@ -33,6 +33,7 @@ tincan_add_unit_test(tst_contactcsv tst_contactcsv.cpp tincan_app)
 tincan_add_unit_test(tst_uriparser tst_uriparser.cpp tincan_app)
 tincan_add_unit_test(tst_commandline tst_commandline.cpp tincan_app)
 tincan_add_unit_test(tst_singleinstance tst_singleinstance.cpp tincan_app)
+tincan_add_unit_test(tst_privatedirectory tst_privatedirectory.cpp tincan_app)
 tincan_add_unit_test(tst_autostart tst_autostart.cpp tincan_app)
 tincan_add_unit_test(tst_configsecretstore tst_configsecretstore.cpp tincan_app)
 

@@ -36,8 +36,11 @@ public:
     void setDefaultAccountId(const QString &accountId);
 
     bool addAccount(AccountConfig config, QString *error = nullptr);
+    // Both refuse while the account has calls: the engine's call objects
+    // refer to the account and must not outlive or straddle a change to it.
     bool updateAccount(const AccountConfig &config, QString *error = nullptr);
-    void removeAccount(const QString &accountId);
+    bool removeAccount(const QString &accountId, QString *error = nullptr);
+    bool hasActiveCalls(const QString &accountId) const;
 
     RegistrationInfo registrationInfo(const QString &accountId) const;
     void handleRegistrationChanged(const RegistrationInfo &info);
@@ -52,6 +55,7 @@ signals:
     void ownPresenceChanged(tincan::PresenceState state);
 
 private:
+    static QString activeCallsError();
     qsizetype findAccountIndex(const QString &accountId) const;
     void normalizeDefaultAccountId();
     void applyOwnPresenceToAccount(const QString &accountId);
