@@ -27,7 +27,11 @@ EngineConfig buildDefaultEngineConfig(bool nullAudio) {
 }
 
 Database &openDbOnInit(Database &db) {
-    (void)db.open();
+    QString error;
+    if (!db.open(&error)) {
+        qWarning("Cannot open the database %s: %s", qUtf8Printable(db.databasePath()),
+                 qUtf8Printable(error));
+    }
     return db;
 }
 

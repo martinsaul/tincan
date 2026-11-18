@@ -71,6 +71,9 @@ struct SmokeRig {
     tincan::MessageService messages{engine, accounts, messageRepo};
 
     SmokeRig() {
+        tincan::CallSettings cs = settings.callSettings();
+        cs.recordingsDir = tempDir.filePath(QStringLiteral("recordings"));
+        settings.setCallSettings(cs);
         router.addListener(&calls);
         router.addListener(&contacts);
         router.addListener(&messages);

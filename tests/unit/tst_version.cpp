@@ -10,7 +10,7 @@ class TestVersion : public QObject {
 
 private slots:
     void returnsConfiguredProjectVersion() {
-        QCOMPARE(tincan::Version::string(), QStringLiteral("0.1.0"));
+        QCOMPARE(tincan::Version::string(), QStringLiteral("0.1.1"));
     }
 
     void exposesPublicSourceRepository() {

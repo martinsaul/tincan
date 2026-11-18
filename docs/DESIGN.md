@@ -123,7 +123,11 @@ so muted spans are silent on our side.
 - Config: `$XDG_CONFIG_HOME/tincan/tincan.ini` (QSettings, INI).
 - Database: `$XDG_DATA_HOME/tincan/tincan.sqlite` with a schema version
   table and forward-only migrations.
-- Recordings: `$XDG_MUSIC_DIR/Tincan` by default, configurable.
+- Recordings: `$XDG_MUSIC_DIR/Tincan` by default, configurable. Each WAV is
+  created owner-only (0600) before PJSIP writes audio and never overwrites
+  an existing file; a directory Tincan creates for them is 0700.
+- The database and its `-wal`/`-shm` files are 0600; the data directory is
+  0700.
 - Passwords: Secret Service via QtKeychain, keyed by account id.
 - Single-instance socket: `$XDG_RUNTIME_DIR/tincan-<uid>` when that
   directory is private to the user, else `$XDG_CACHE_HOME/tincan/ipc/`

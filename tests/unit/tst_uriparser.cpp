@@ -78,6 +78,14 @@ private slots:
         QTest::newRow("sip invalid utf8") << "sip:%ff%fe@host";
         QTest::newRow("sip encoded newline") << "sip:100@host%0d%0aVia:x";
         QTest::newRow("sip bad header encoding") << "sip:100@host?x=%g1";
+        QTest::newRow("sip encoded markup user") << "sip:%3Cb%3Ex%3C/b%3E@host";
+        QTest::newRow("sip encoded nul") << "sip:100%00@host";
+        QTest::newRow("sip encoded at in host") << "sip:100@host%40evil";
+        QTest::newRow("sip markup param") << "sip:100@host;x=%3Cimg%3E";
+        QTest::newRow("callto encoded markup") << "callto:%3Ca%20href%3D1%3E";
+        QTest::newRow("tel fullwidth digits") << QStringLiteral("tel:\uFF11\uFF12");
+        QTest::newRow("oversized") << QStringLiteral("sip:") + QString(4096, u'1') +
+                                          QStringLiteral("@host");
     }
 
     void rejectsGarbage() {

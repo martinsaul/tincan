@@ -9,6 +9,8 @@ namespace tincan::RecordingNamer {
 
 namespace {
 
+constexpr qsizetype kMaxStemLength = 64;
+
 bool isSafeFileChar(QChar ch) {
     const ushort u = ch.unicode();
     return (u >= u'0' && u <= u'9') || (u >= u'A' && u <= u'Z') || (u >= u'a' && u <= u'z') ||
@@ -52,6 +54,8 @@ QString extractRemoteStem(const QString &remoteUri) {
     while (!sanitized.isEmpty() && sanitized.front() == u'.') {
         sanitized.remove(0, 1);
     }
+    // Keep the whole file name well inside the usual 255-byte limit.
+    sanitized.truncate(kMaxStemLength);
     return sanitized.isEmpty() ? QStringLiteral("unknown") : sanitized;
 }
 

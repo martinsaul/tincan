@@ -8,6 +8,9 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
@@ -48,19 +51,24 @@ jobs:
             qtkeychain-qt6-dev \
             uuid-dev \
             xvfb
-          pip install --break-system-packages lizard
+          pip install --break-system-packages lizard==1.26.1
 
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
 
+      # These caches only speed up CI. GitHub scopes caches written by
+      # pull_request runs to the PR's merge ref, and release.yml restores no
+      # caches at all: it rebuilds pjproject from the SHA-256-verified tarball.
       - name: Cache pjproject installation
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: third_party/pjproject/install
           key: pjproject-2.17-trixie-${{ hashFiles('tools/build-pjproject.sh') }}
 
       - name: Cache ccache
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: .ccache
           key: ccache-trixie-${{ github.sha }}
@@ -88,7 +96,7 @@ jobs:
 
       - name: Upload test logs
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: test-logs
           path: |

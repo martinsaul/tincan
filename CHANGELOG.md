@@ -7,8 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-18
+
+Security and reliability fixes from a second review of 0.1.0.
+
 ### Security
 
+- Call recordings are created owner-only (0600) before any audio is written,
+  and a recordings directory that Tincan creates is 0700. A recording never
+  overwrites or follows an existing file or symlink; a numeric suffix is
+  added instead, and long caller names are shortened in file names.
+- The database (history, contacts, messages) and its `-wal`/`-shm` files are
+  owner-only (0600) and Tincan's data directory is 0700; files from 0.1.0 are
+  tightened on start-up.
+- Desktop notification bodies are escaped for notification servers that
+  render markup, so a caller's display name or a message cannot inject links
+  or images.
+- Tincan refuses to open a database written by a newer version instead of
+  running old code against a newer schema. Database open failures are logged.
+- `sip:`/`tel:`/`callto:` links longer than 2048 characters are ignored.
+- CI and release workflows pin third-party actions to commit SHAs, default
+  to a read-only token, and do not persist checkout credentials.
 - The single-instance socket no longer falls back to a shared directory such
   as `/tmp` when `XDG_RUNTIME_DIR` is unset. It now uses a 0700 directory
   under the user's cache directory, both ends verify the peer's user id, and
@@ -65,5 +84,6 @@ First public release.
   copyright file; release workflow that publishes the packages with
   `SHA256SUMS`.
 
-[Unreleased]: https://github.com/martinsaul/tincan/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/martinsaul/tincan/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/martinsaul/tincan/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/martinsaul/tincan/releases/tag/v0.1.0

@@ -119,6 +119,17 @@ bool applySingleStep(QSqlDatabase &db, const MigrationStep &step, QString *error
     return true;
 }
 
+bool readVersion(const QSqlDatabase &db, int *version, QString *error) {
+    QSqlQuery query(db);
+    if (!query.prepare(QStringLiteral("SELECT COALESCE(MAX(version), 0) FROM schema_version")) ||
+        !query.exec() || !query.next()) {
+        setOutError(error, query.lastError().text());
+        return false;
+    }
+    *version = query.value(0).toInt();
+    return true;
+}
+
 } // namespace
 
 int latestVersion() {
@@ -127,12 +138,8 @@ int latestVersion() {
 }
 
 int currentVersion(const QSqlDatabase &db) {
-    QSqlQuery query(db);
-    if (!query.prepare(QStringLiteral("SELECT COALESCE(MAX(version), 0) FROM schema_version")) ||
-        !query.exec() || !query.next()) {
-        return 0;
-    }
-    return query.value(0).toInt();
+    int version = 0;
+    return readVersion(db, &version, nullptr) ? version : 0;
 }
 
 bool apply(QSqlDatabase db, QString *error) {
@@ -144,7 +151,18 @@ bool apply(QSqlDatabase db, QString *error) {
         return false;
     }
 
-    const int current = currentVersion(db);
+    int current = 0;
+    if (!readVersion(db, &current, error)) {
+        return false;
+    }
+    if (current > latestVersion()) {
+        // Written by a newer Tincan: never run old code against a newer schema.
+        setOutError(error, QStringLiteral("Database schema version %1 is newer than supported "
+                                          "version %2")
+                               .arg(current)
+                               .arg(latestVersion()));
+        return false;
+    }
     for (const MigrationStep &step : allSteps()) {
         if (step.version <= current) {
             continue;

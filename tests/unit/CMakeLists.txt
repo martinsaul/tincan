@@ -36,6 +36,7 @@ tincan_add_unit_test(tst_singleinstance tst_singleinstance.cpp tincan_app)
 tincan_add_unit_test(tst_privatedirectory tst_privatedirectory.cpp tincan_app)
 tincan_add_unit_test(tst_autostart tst_autostart.cpp tincan_app)
 tincan_add_unit_test(tst_configsecretstore tst_configsecretstore.cpp tincan_app)
+tincan_add_unit_test(tst_recordingfile tst_recordingfile.cpp tincan_app)
 
 foreach(svc_test IN ITEMS
         tst_accountservice

@@ -6,7 +6,7 @@ window, a dial pad, quick answer and hang-up, and very little in the way.
 
 ## Status
 
-Version **0.1.0**, the first public release. See [CHANGELOG.md](CHANGELOG.md).
+Version **0.1.1**. See [CHANGELOG.md](CHANGELOG.md).
 
 ## Screenshots
 
@@ -57,8 +57,8 @@ sha256sum --check --ignore-missing SHA256SUMS
 ### AppImage
 
 ```sh
-chmod +x Tincan-0.1.0-x86_64.AppImage
-./Tincan-0.1.0-x86_64.AppImage
+chmod +x Tincan-0.1.1-x86_64.AppImage
+./Tincan-0.1.1-x86_64.AppImage
 ```
 
 The AppImage bundles Qt, QtKeychain and the other libraries Tincan needs. It
@@ -70,7 +70,7 @@ run it with `--appimage-extract-and-run`.
 For Debian 13 (trixie) and distributions of the same generation:
 
 ```sh
-sudo apt install ./tincan_0.1.0_amd64.deb
+sudo apt install ./tincan_0.1.1_amd64.deb
 ```
 
 ### Flatpak

@@ -7,11 +7,45 @@
 #include "sip/sip_endpoint.h"
 
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
 
 #include <algorithm>
+#include <cerrno>
+
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 namespace tincan::sip {
+
+namespace {
+
+// Recordings hold private call audio. PJSIP's WAV writer creates its file
+// with the process umask, so the file is created (or tightened) here as an
+// owner-only regular file first; PJSIP then truncates it and keeps the mode.
+// A missing directory is created owner-only too. Symlinks are refused.
+bool prepareOwnerOnlyFile(const QString &path) {
+    const QString dir = QFileInfo(path).absolutePath();
+    if (!QFileInfo(dir).isDir()) {
+        if (!QDir().mkpath(QFileInfo(dir).absolutePath()) ||
+            (::mkdir(QFile::encodeName(dir).constData(), S_IRWXU) != 0 && errno != EEXIST)) {
+            return false;
+        }
+    }
+    const int fd = ::open(QFile::encodeName(path).constData(),
+                          O_WRONLY | O_CREAT | O_NOFOLLOW | O_CLOEXEC, S_IRUSR | S_IWUSR);
+    if (fd < 0) {
+        return false;
+    }
+    struct stat st {};
+    const bool ok = ::fstat(fd, &st) == 0 && S_ISREG(st.st_mode) && st.st_uid == ::geteuid() &&
+                    ::fchmod(fd, S_IRUSR | S_IWUSR) == 0;
+    ::close(fd);
+    return ok;
+}
+
+} // namespace
 
 CallRecorder::CallRecorder(SipEndpoint &endpoint) : endpoint_(endpoint) {}
 
@@ -27,8 +61,7 @@ bool CallRecorder::start(int callId, SipCall &call, const QString &wavPath) {
 
     (void)stop(callId, &call);
 
-    const QFileInfo fileInfo(trimmed);
-    if (!QDir().mkpath(fileInfo.absolutePath())) {
+    if (!prepareOwnerOnlyFile(trimmed)) {
         return false;
     }
 

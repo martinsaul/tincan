@@ -76,10 +76,30 @@ uint DbusNotifications::notify(const NotificationRequest &request) {
     QDBusMessage call = QDBusMessage::createMethodCall(kService, kPath, kInterface,
                                                        QStringLiteral("Notify"));
     const int expireTimeout = request.persistent ? 0 : -1;
-    call << appName_ << uint{0} << appIcon_ << request.summary << request.body << request.actions
+    const QString body = bodyFor(request.body, serverUsesMarkup());
+    call << appName_ << uint{0} << appIcon_ << request.summary << body << request.actions
          << hintsFor(request) << expireTimeout;
     const QDBusReply<uint> reply = bus.call(call, QDBus::Block, kCallTimeoutMs);
     return reply.isValid() ? reply.value() : 0;
+}
+
+QString DbusNotifications::bodyFor(const QString &text, bool serverUsesMarkup) {
+    return serverUsesMarkup ? text.toHtmlEscaped() : text;
+}
+
+bool DbusNotifications::serverUsesMarkup() {
+    if (bodyMarkup_.has_value()) {
+        return *bodyMarkup_;
+    }
+    const QDBusMessage call = QDBusMessage::createMethodCall(kService, kPath, kInterface,
+                                                             QStringLiteral("GetCapabilities"));
+    const QDBusReply<QStringList> reply =
+        QDBusConnection::sessionBus().call(call, QDBus::Block, kCallTimeoutMs);
+    if (!reply.isValid()) {
+        return true; // Unknown: escaping is the safe choice; don't cache.
+    }
+    bodyMarkup_ = reply.value().contains(QStringLiteral("body-markup"));
+    return *bodyMarkup_;
 }
 
 void DbusNotifications::close(uint id) {

@@ -108,7 +108,12 @@ private slots:
         engine_->stopRecording(callId);
         QVERIFY(engine_->hangup(callId));
         QTRY_VERIFY_WITH_TIMEOUT(engine_->calls().isEmpty(), 5000);
-        QVERIFY(QFileInfo(dir.filePath(QStringLiteral("call.wav"))).size() > 0);
+        const QFileInfo wav(dir.filePath(QStringLiteral("call.wav")));
+        QVERIFY(wav.size() > 0);
+        // Call audio is private: PJSIP must not leave the file readable by others.
+        QCOMPARE(wav.permissions() & ~(QFile::ReadOwner | QFile::WriteOwner | QFile::ReadUser |
+                                        QFile::WriteUser),
+                 QFile::Permissions());
     }
 
 private:

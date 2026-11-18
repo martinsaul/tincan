@@ -12,6 +12,9 @@ namespace tincan::UriParser {
 
 namespace {
 
+// Links come from untrusted pages; no real dial target is anywhere near this.
+constexpr qsizetype kMaxUriLength = 2048;
+
 int hexValue(char ch) {
     if (ch >= '0' && ch <= '9') {
         return ch - '0';
@@ -332,6 +335,9 @@ bool hasSupportedScheme(const QString &text) {
 
 QString parse(const QString &uri) {
     const QString trimmed = uri.trimmed();
+    if (trimmed.size() > kMaxUriLength) {
+        return {};
+    }
     if (trimmed.startsWith(QStringLiteral("tel:"), Qt::CaseInsensitive)) {
         return parseTel(QStringView{trimmed}.mid(4));
     }

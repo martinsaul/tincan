@@ -7,10 +7,17 @@
 #include "app/migrations.h"
 
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
 #include <QSqlError>
 #include <QSqlQuery>
 #include <QUuid>
+
+#include <cerrno>
+
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 namespace tincan {
 
@@ -47,6 +54,39 @@ bool execPragma(const QSqlDatabase &db, const QString &pragmaSql, QString *error
     return true;
 }
 
+// History, contacts and messages are private. A missing directory is created
+// 0700 (Tincan's own data directory is tightened too); the database file is
+// created or tightened to 0600 before SQLite opens it, and SQLite gives its
+// -wal and -shm files the same mode as the database file.
+bool prepareOwnerOnlyFile(const QString &path, QString *error) {
+    const QString dir = QFileInfo(path).absolutePath();
+    const QByteArray nativeDir = QFile::encodeName(dir);
+    if (!QFileInfo(dir).isDir() &&
+        (!QDir().mkpath(QFileInfo(dir).absolutePath()) ||
+         (::mkdir(nativeDir.constData(), S_IRWXU) != 0 && errno != EEXIST))) {
+        setOutError(error, QStringLiteral("Cannot create %1").arg(dir));
+        return false;
+    }
+    if (QDir(dir) == QDir(AppPaths::dataDir())) {
+        (void)::chmod(nativeDir.constData(), S_IRWXU);
+    }
+    for (const QString &suffix : {QString(), QStringLiteral("-wal"), QStringLiteral("-shm")}) {
+        const QByteArray native = QFile::encodeName(path + suffix);
+        const int flags = O_RDWR | O_NOFOLLOW | O_CLOEXEC | (suffix.isEmpty() ? O_CREAT : 0);
+        const int fd = ::open(native.constData(), flags, S_IRUSR | S_IWUSR);
+        if (fd < 0) {
+            if (suffix.isEmpty() || errno != ENOENT) {
+                setOutError(error, QStringLiteral("Cannot open %1").arg(path + suffix));
+                return false;
+            }
+            continue;
+        }
+        (void)::fchmod(fd, S_IRUSR | S_IWUSR);
+        ::close(fd);
+    }
+    return true;
+}
+
 } // namespace
 
 Database::Database(QString dbPath, QString connectionName)
@@ -60,8 +100,8 @@ bool Database::open(QString *error) {
     if (isOpen()) {
         return true;
     }
-    if (dbPath_ != QStringLiteral(":memory:")) {
-        QDir().mkpath(QFileInfo(dbPath_).absolutePath());
+    if (dbPath_ != QStringLiteral(":memory:") && !prepareOwnerOnlyFile(dbPath_, error)) {
+        return false;
     }
 
     QSqlDatabase db = QSqlDatabase::contains(connectionName_)

@@ -3,6 +3,7 @@
 
 #include "app/account_service.h"
 #include "app/call_service.h"
+#include "app/dbus_notifications.h"
 #include "app/notifier.h"
 #include "app/secret_store.h"
 #include "app/settings_store.h"
@@ -117,6 +118,19 @@ private slots:
         QVERIFY(rig.backend.shown.first().actions.contains(QStringLiteral("open")));
         rig.backend.invoke(1, QStringLiteral("open"));
         QCOMPARE(openHistory.size(), 1);
+    }
+
+    // Remote display names, URIs and message bodies are caller-controlled and
+    // must not be rendered as markup by servers with "body-markup".
+    void dbusBodyEscapesMarkupForMarkupServers() {
+        const QString hostile =
+            QStringLiteral("<a href=\"https://x.example\">Bob</a> & <img src=x>");
+        const QString escaped = tincan::DbusNotifications::bodyFor(hostile, true);
+        QVERIFY(!escaped.contains(u'<'));
+        QVERIFY(!escaped.contains(u'>'));
+        QCOMPARE(escaped, QStringLiteral("&lt;a href=&quot;https://x.example&quot;&gt;Bob&lt;/a&gt;"
+                                         " &amp; &lt;img src=x&gt;"));
+        QCOMPARE(tincan::DbusNotifications::bodyFor(hostile, false), hostile);
     }
 };
 

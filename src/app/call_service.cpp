@@ -3,7 +3,7 @@
 
 #include "app/call_service.h"
 
-#include "app/recording_namer.h"
+#include "app/recording_file.h"
 #include "core/sip_uri.h"
 
 namespace tincan {
@@ -187,12 +187,13 @@ bool CallService::mergeAllCalls() {
 
 bool CallService::startRecording(int callId) {
     const qsizetype idx = findCallIndex(callId);
-    if (idx < 0) {
-        return false;
+    const QString wavPath = idx < 0 ? QString() : RecordingFile::create(
+        settings_.callSettings().recordingsDir, calls_[idx].remoteUri);
+    const bool started = !wavPath.isEmpty() && engine_.startRecording(callId, wavPath);
+    if (!started) {
+        RecordingFile::discardIfEmpty(wavPath);
     }
-    const QString wavPath =
-        RecordingNamer::buildWavPath(settings_.callSettings().recordingsDir, calls_[idx].remoteUri);
-    return engine_.startRecording(callId, wavPath);
+    return started;
 }
 
 bool CallService::toggleRecording(int callId) {

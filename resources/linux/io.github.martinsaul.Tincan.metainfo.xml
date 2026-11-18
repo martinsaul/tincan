@@ -48,6 +48,19 @@
     <content_attribute id="social-chat">intense</content_attribute>
   </content_rating>
   <releases>
+    <release version="0.1.1" date="2026-11-18">
+      <description>
+        <p>Security and reliability fixes.</p>
+        <ul>
+          <li>Call recordings and the call database are readable only by their owner.</li>
+          <li>Caller names in desktop notifications are shown as text, never as markup.</li>
+          <li>Recordings never overwrite an earlier file.</li>
+          <li>A finished call can no longer hang up a new call that reused its id.</li>
+          <li>Recordings no longer capture the microphone while the call is muted.</li>
+          <li>The single-instance socket is always private to the user.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.1.0" date="2026-11-16">
       <description>
         <p>First release.</p>

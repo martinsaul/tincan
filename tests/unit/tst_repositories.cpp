@@ -180,6 +180,45 @@ private slots:
         QCOMPARE(repo.totalUnreadCount(), 1);
         QCOMPARE(repo.listForPeer(QStringLiteral("sip:alice@pbx.example")).size(), 2);
     }
+
+    // Values reach SQLite only as bound parameters, so SQL-looking text is
+    // stored and found verbatim and the schema stays intact.
+    void sqlLookingTextRoundTripsVerbatim() {
+        tincan::Database db(QStringLiteral(":memory:"));
+        QVERIFY(db.open());
+        const QString evil = QStringLiteral("Robert'); DROP TABLE contacts;-- \" %_\\");
+
+        tincan::ContactRepository contacts(db);
+        tincan::Contact c;
+        c.name = evil;
+        c.number = QStringLiteral("1' OR '1'='1");
+        c.notes = evil;
+        const qint64 id = contacts.insert(c);
+        QVERIFY(id > 0);
+        QCOMPARE(contacts.findById(id)->name, evil);
+        QCOMPARE(contacts.findById(id)->number, QStringLiteral("1' OR '1'='1"));
+        QCOMPARE(contacts.search(evil).size(), 1);
+        QCOMPARE(contacts.search(QStringLiteral("' OR 1=1 --")).size(), 0);
+
+        tincan::HistoryRepository history(db);
+        tincan::HistoryEntry h;
+        h.accountId = QStringLiteral("acc");
+        h.remoteUri = QStringLiteral("sip:x@h");
+        h.remoteName = evil;
+        h.startedAt = h.endedAt = QDateTime::currentDateTimeUtc();
+        QVERIFY(history.insert(h) > 0);
+        QCOMPARE(history.search(evil).first().remoteName, evil);
+
+        tincan::MessageRepository messages(db);
+        tincan::ChatMessage m;
+        m.accountId = QStringLiteral("acc");
+        m.peerUri = evil;
+        m.body = evil;
+        m.sentAt = QDateTime::currentDateTimeUtc();
+        QVERIFY(messages.insert(m) > 0);
+        QCOMPARE(messages.listForPeer(evil).first().body, evil);
+        QCOMPARE(contacts.listAll().size(), 1);
+    }
 };
 
 QTEST_GUILESS_MAIN(TestRepositories)

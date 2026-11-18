@@ -4,12 +4,20 @@
 #include "app/database.h"
 #include "app/migrations.h"
 
+#include <QFile>
 #include <QSet>
 #include <QSqlQuery>
 #include <QTemporaryDir>
 #include <QTest>
 
+#include <sys/stat.h>
+
 namespace {
+
+int modeOf(const QString &path) {
+    struct stat st {};
+    return ::stat(QFile::encodeName(path).constData(), &st) == 0 ? int(st.st_mode & 07777) : -1;
+}
 
 QSet<QString> sqliteObjectsOfType(const QSqlDatabase &db, const QString &type) {
     QSet<QString> names;
@@ -83,6 +91,57 @@ private slots:
         QVERIFY(countQuery.exec(QStringLiteral("SELECT COUNT(*) FROM contacts")));
         QVERIFY(countQuery.next());
         QCOMPARE(countQuery.value(0).toInt(), 1);
+    }
+
+    void fileDbAndNewDirectoryAreOwnerOnly() {
+        QTemporaryDir tempDir;
+        QVERIFY(tempDir.isValid());
+        const QString dir = tempDir.filePath(QStringLiteral("data"));
+        const QString dbFile = dir + QStringLiteral("/tincan.sqlite");
+        tincan::Database db(dbFile);
+        QString error;
+        QVERIFY2(db.open(&error), qPrintable(error));
+        QSqlQuery ins(db.connection());
+        QVERIFY(ins.exec(QStringLiteral("INSERT INTO messages(account_id, peer_uri, direction, "
+                                        "body, sent_at) VALUES ('a', 'p', 0, 'b', 't')")));
+
+        QCOMPARE(modeOf(dir), 0700);
+        QCOMPARE(modeOf(dbFile), 0600);
+        QCOMPARE(modeOf(dbFile + QStringLiteral("-wal")), 0600);
+    }
+
+    void existingLooseDbFileIsTightened() {
+        QTemporaryDir tempDir;
+        QVERIFY(tempDir.isValid());
+        const QString dbFile = tempDir.filePath(QStringLiteral("old.sqlite"));
+        QFile seed(dbFile);
+        QVERIFY(seed.open(QIODevice::WriteOnly));
+        seed.close();
+        QVERIFY(::chmod(QFile::encodeName(dbFile).constData(), 0644) == 0);
+
+        tincan::Database db(dbFile);
+        QString error;
+        QVERIFY2(db.open(&error), qPrintable(error));
+        QCOMPARE(modeOf(dbFile), 0600);
+    }
+
+    void refusesSchemaFromNewerVersion() {
+        QTemporaryDir tempDir;
+        QVERIFY(tempDir.isValid());
+        const QString dbFile = tempDir.filePath(QStringLiteral("newer.sqlite"));
+        QString error;
+        {
+            tincan::Database db(dbFile);
+            QVERIFY2(db.open(&error), qPrintable(error));
+            QSqlQuery q(db.connection());
+            QVERIFY(q.prepare(QStringLiteral(
+                "INSERT INTO schema_version(version, applied_at) VALUES (:v, 'now')")));
+            q.bindValue(QStringLiteral(":v"), tincan::Migrations::latestVersion() + 1);
+            QVERIFY(q.exec());
+        }
+        tincan::Database reopened(dbFile);
+        QVERIFY(!reopened.open(&error));
+        QVERIFY2(error.contains(QStringLiteral("newer")), qPrintable(error));
     }
 };
 
