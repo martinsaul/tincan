@@ -48,6 +48,16 @@
     <content_attribute id="social-chat">intense</content_attribute>
   </content_rating>
   <releases>
+    <release version="0.1.2" date="2026-11-21">
+      <description>
+        <p>Packages for Ubuntu 24.04 and Linux Mint 22.</p>
+        <ul>
+          <li>A .deb package for Ubuntu 24.04 and Linux Mint 22.</li>
+          <li>The AppImage now runs on systems with glibc 2.39 or newer.</li>
+          <li>Qt 6.4 is the minimum supported Qt version.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.1.1" date="2026-11-18">
       <description>
         <p>Security and reliability fixes.</p>

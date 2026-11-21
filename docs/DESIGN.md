@@ -157,8 +157,14 @@ so muted spans are silent on our side.
   `x-scheme-handler/sip`, `tel`, `callto`), AppStream metainfo, icons.
 - Man page `tincan.1`, `THIRD_PARTY_NOTICES.md` and a machine-readable
   `copyright` file in `share/doc/tincan`.
-- Release artifacts, built by `.github/workflows/release.yml` on `v*` tags:
-  a `.deb` (CPack, Debian trixie) and an AppImage
-  (`packaging/appimage/build-appimage.sh`, linuxdeploy), plus `SHA256SUMS`.
+- Release artifacts, built by `.github/workflows/release.yml` on `v*` tags,
+  each in a container of the distribution it targets: a `.deb` for Debian 13
+  (CPack, Qt 6.8), a `.deb` for Ubuntu 24.04 / Linux Mint 22 (Qt 6.4,
+  version suffix `~ubuntu24.04`) and an AppImage built on Ubuntu 24.04
+  (`packaging/appimage/build-appimage.sh`, linuxdeploy; glibc 2.39+), plus
+  `SHA256SUMS`. The `.deb` dependencies on Qt plugin packages are looked up
+  with dpkg at configure time (`cmake/DebianDistro.cmake`), because their
+  names differ between the two distributions.
+- Qt 6.4 is the minimum supported Qt version; CI tests Qt 6.4 and 6.8.
 - Flatpak manifest in `packaging/flatpak/` (KDE runtime 6.8); not built in
   CI yet.

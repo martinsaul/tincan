@@ -130,7 +130,7 @@ private slots:
 
         const tincan::ui::AboutDialog dlg(QStringLiteral("2.17"));
         const QString html = dlg.bodyHtml();
-        QVERIFY(html.contains(QStringLiteral("Tincan 0.1.1")));
+        QVERIFY(html.contains(QStringLiteral("Tincan 0.1.2")));
         QVERIFY(html.contains(QStringLiteral("PJSIP 2.17")));
         QVERIFY(html.contains(QStringLiteral("AGPL-3.0-or-later")));
         QVERIFY(html.contains(QStringLiteral("https://github.com/martinsaul/tincan")));

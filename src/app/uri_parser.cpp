@@ -320,7 +320,7 @@ QString parseSip(QStringView normalizedScheme, QStringView rest) {
     if (!paramsOk) {
         return {};
     }
-    return QString(normalizedScheme) + addr + params;
+    return normalizedScheme.toString() + addr + params;
 }
 
 } // namespace

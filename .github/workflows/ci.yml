@@ -13,9 +13,20 @@ permissions:
 
 jobs:
   build-and-test:
+    # Debian 13 ships Qt 6.8; Ubuntu 24.04 ships Qt 6.4, the oldest Qt
+    # Tincan supports.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - distro: trixie
+            image: debian:trixie
+          - distro: noble
+            image: ubuntu:24.04
+    name: build-and-test (${{ matrix.distro }})
     runs-on: ubuntu-latest
     container:
-      image: debian:trixie
+      image: ${{ matrix.image }}
     env:
       CCACHE_DIR: ${{ github.workspace }}/.ccache
       CCACHE_MAXSIZE: 500M
@@ -23,6 +34,7 @@ jobs:
       - name: Install dependencies
         env:
           DEBIAN_FRONTEND: noninteractive
+          DISTRO: ${{ matrix.distro }}
         run: |
           apt-get update
           apt-get install -y --no-install-recommends \
@@ -51,7 +63,9 @@ jobs:
             qtkeychain-qt6-dev \
             uuid-dev \
             xvfb
-          pip install --break-system-packages lizard==1.26.1
+          if [ "${DISTRO}" = trixie ]; then
+            pip install --break-system-packages lizard==1.26.1
+          fi
 
       - name: Checkout repository
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -65,14 +79,14 @@ jobs:
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: third_party/pjproject/install
-          key: pjproject-2.17-trixie-${{ hashFiles('tools/build-pjproject.sh') }}
+          key: pjproject-2.17-${{ matrix.distro }}-${{ hashFiles('tools/build-pjproject.sh') }}
 
       - name: Cache ccache
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: .ccache
-          key: ccache-trixie-${{ github.sha }}
-          restore-keys: ccache-trixie-
+          key: ccache-${{ matrix.distro }}-${{ github.sha }}
+          restore-keys: ccache-${{ matrix.distro }}-
 
       - name: Build pinned pjproject
         run: tools/build-pjproject.sh
@@ -98,10 +112,11 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: test-logs
+          name: test-logs-${{ matrix.distro }}
           path: |
             build/Testing/Temporary/
           if-no-files-found: ignore
 
       - name: Run code size check
+        if: matrix.distro == 'trixie'
         run: tools/size-check.sh

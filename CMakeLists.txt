@@ -4,7 +4,7 @@
 cmake_minimum_required(VERSION 3.25)
 
 project(tincan
-    VERSION 0.1.1
+    VERSION 0.1.2
     DESCRIPTION "Lightweight SIP softphone for Linux"
     HOMEPAGE_URL "https://github.com/martinsaul/tincan"
     LANGUAGES CXX)
@@ -34,7 +34,7 @@ set(_tincan_qt_components Core Sql Network DBus Widgets Svg LinguistTools)
 if(TINCAN_BUILD_TESTS)
     list(APPEND _tincan_qt_components Test)
 endif()
-find_package(Qt6 REQUIRED COMPONENTS ${_tincan_qt_components})
+find_package(Qt6 6.4 REQUIRED COMPONENTS ${_tincan_qt_components})
 find_package(Qt6Keychain REQUIRED)
 include(Pjproject)
 

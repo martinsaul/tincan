@@ -125,11 +125,31 @@ extra_platform_plugins() {
     printf '%s\n' "${list}"
 }
 
+# NSS, the crypto backend of Debian's and Ubuntu's libsrtp2, loads its
+# PKCS #11 soft token with dlopen() from the directory of libnss3, so
+# linuxdeploy cannot find it. Without it SRTP fails to initialise on hosts
+# that have no NSS of their own. Prints one library path per line.
+nss_modules() {
+    local nss dir module
+    nss="$(ldd "${BUILD_DIR}/src/tincan" | awk '/libnss3\.so/ {print $3; exit}')"
+    [[ -n "${nss}" ]] || return 0
+    dir="$(dirname "$(readlink -f "${nss}")")"
+    for module in libsoftokn3.so libfreeblpriv3.so libfreebl3.so; do
+        [[ -f "${dir}/${module}" ]] || die "NSS module ${module} not found in ${dir}"
+        printf '%s\n' "${dir}/${module}"
+    done
+}
+
 run_linuxdeploy() {
     local appdir="$1" linuxdeploy="$2" plugin_dir="$3" version="$4" output="$5"
-    local platforms keychain
+    local platforms keychain module
+    local -a libraries
     platforms="$(extra_platform_plugins)"
     keychain="$(keychain_library)" || exit 1
+    libraries=(--library "${keychain}")
+    while IFS= read -r module; do
+        libraries+=(--library "${module}")
+    done < <(nss_modules)
     # linuxdeploy finds linuxdeploy-plugin-qt-x86_64.AppImage on PATH.
     (
         cd "${OUTPUT_DIR}"
@@ -139,13 +159,14 @@ run_linuxdeploy() {
         export QMAKE LINUXDEPLOY_OUTPUT_VERSION="${version}" OUTPUT="${output}"
         export EXTRA_PLATFORM_PLUGINS="${platforms}"
         # QtKeychain is listed explicitly so the AppImage never relies on a
-        # host copy of it (or on whichever keychain backend that copy uses).
+        # host copy of it (or on whichever keychain backend that copy uses);
+        # so are the NSS modules (see nss_modules).
         "${linuxdeploy}" \
             --appdir "${appdir}" \
             --executable "${appdir}/usr/bin/tincan" \
             --desktop-file "${appdir}/usr/share/applications/${APP_ID}.desktop" \
             --icon-file "${appdir}/usr/share/icons/hicolor/scalable/apps/${APP_ID}.svg" \
-            --library "${keychain}" \
+            "${libraries[@]}" \
             --plugin qt \
             --output appimage
     )
@@ -159,6 +180,9 @@ check_appdir() {
         || die "Qt SQLite driver was not bundled"
     [[ -f "${appdir}/usr/plugins/platforms/libqxcb.so" ]] \
         || die "Qt xcb platform plugin was not bundled"
+    if compgen -G "${appdir}/usr/lib/libnss3.so*" >/dev/null; then
+        [[ -f "${appdir}/usr/lib/libsoftokn3.so" ]] || die "NSS soft token was not bundled"
+    fi
 }
 
 main() {

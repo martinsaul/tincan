@@ -43,7 +43,9 @@ the one matching the system locale at start-up.
 
 - `tincan_en.ts` holds only plural forms (`tr("%n ...", nullptr, n)`), because
   English source strings need no other translation.
-- To refresh every catalogue after changing strings, run:
+- To refresh every catalogue after changing strings, run (needs Qt 6.7 or
+  newer; with older Qt, down to the supported minimum of 6.4, the build only
+  compiles and embeds the existing catalogues):
   ```sh
   cmake --build build --target update_translations
   ```

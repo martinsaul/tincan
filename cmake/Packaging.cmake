@@ -33,6 +33,7 @@ install(FILES "${PROJECT_SOURCE_DIR}/packaging/debian/copyright"
     DESTINATION "${TINCAN_DOC_DIR}")
 
 # --- CPack: Debian package ---
+include(DebianDistro)
 set(CPACK_GENERATOR "DEB" CACHE STRING "CPack generators")
 set(CPACK_PACKAGE_NAME "tincan")
 set(CPACK_PACKAGE_VENDOR "Tincan contributors")
@@ -51,7 +52,22 @@ set(CPACK_INSTALL_DEFAULT_DIRECTORY_PERMISSIONS
 set(CPACK_PRE_BUILD_SCRIPTS "${PROJECT_SOURCE_DIR}/cmake/CPackNormalizePermissions.cmake")
 
 set(CPACK_DEBIAN_PACKAGE_NAME "tincan")
-set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
+# Debian version <version><suffix>; the suffix is empty on Debian.
+set(CPACK_DEBIAN_PACKAGE_VERSION "${PROJECT_VERSION}${TINCAN_DEB_VERSION_SUFFIX}")
+if(TINCAN_DEB_VERSION_SUFFIX)
+    # GitHub stores "~" in release asset names as ".", so the file name uses
+    # "_<tag>" instead: tincan_0.1.2_ubuntu24.04_amd64.deb.
+    string(REGEX REPLACE "^~" "" _tincan_deb_tag "${TINCAN_DEB_VERSION_SUFFIX}")
+    execute_process(COMMAND dpkg --print-architecture
+        OUTPUT_VARIABLE _tincan_deb_arch OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+    if(NOT _tincan_deb_arch)
+        set(_tincan_deb_arch amd64)
+    endif()
+    set(CPACK_DEBIAN_FILE_NAME
+        "tincan_${PROJECT_VERSION}_${_tincan_deb_tag}_${_tincan_deb_arch}.deb")
+else()
+    set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
+endif()
 set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Tincan contributors")
 set(CPACK_DEBIAN_PACKAGE_SECTION "comm")
 set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
@@ -62,9 +78,13 @@ set(CPACK_DEBIAN_PACKAGE_DESCRIPTION
 PJSIP: several accounts, hold, transfer, conference, recording, contacts\n\
 with presence, call history, SIP MESSAGE chat and a system tray icon.")
 # Linked libraries come from dpkg-shlibdeps. Qt loads the SQLite driver, the
-# SVG icon engine and the platform plugins at run time, so list them here.
+# SVG icon engine and the platform plugin at run time; the packages that ship
+# them differ between distributions, so ask dpkg which ones they are.
 set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
-set(CPACK_DEBIAN_PACKAGE_DEPENDS "libqt6sql6-sqlite, qt6-svg-plugins, qt6-qpa-plugins")
+tincan_qt_plugin_packages(_tincan_plugin_packages)
+list(JOIN _tincan_plugin_packages ", " CPACK_DEBIAN_PACKAGE_DEPENDS)
+message(STATUS "Tincan .deb: version ${CPACK_DEBIAN_PACKAGE_VERSION}, "
+    "plugin packages: ${CPACK_DEBIAN_PACKAGE_DEPENDS}")
 set(CPACK_DEBIAN_PACKAGE_RECOMMENDS "qt6-wayland")
 set(CPACK_DEBIAN_PACKAGE_SUGGESTS "gnome-keyring | kwalletmanager | keepassxc")
 

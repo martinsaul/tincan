@@ -6,7 +6,7 @@ window, a dial pad, quick answer and hang-up, and very little in the way.
 
 ## Status
 
-Version **0.1.1**. See [CHANGELOG.md](CHANGELOG.md).
+Version **0.1.2**. See [CHANGELOG.md](CHANGELOG.md).
 
 ## Screenshots
 
@@ -48,30 +48,39 @@ The screenshots are rendered with `tincan --screenshot <dir>` using demo data.
 
 Release packages are attached to each
 [GitHub release](https://github.com/martinsaul/tincan/releases), together with
-a `SHA256SUMS` file. Check a download with:
+a `SHA256SUMS` file. Pick the file for your distribution:
+
+| Distribution | Download |
+|---|---|
+| Ubuntu 24.04, Linux Mint 22 and other Ubuntu 24.04-based systems | `tincan_0.1.2_ubuntu24.04_amd64.deb` |
+| Debian 13 (trixie) and distributions of the same generation | `tincan_0.1.2_amd64.deb` |
+| Any other x86_64 distribution with glibc 2.39 or newer | `Tincan-0.1.2-x86_64.AppImage` |
+
+Check a download with:
 
 ```sh
 sha256sum --check --ignore-missing SHA256SUMS
 ```
 
+### Debian / Ubuntu package
+
+Install the `.deb` with apt, which also installs the Qt libraries it needs:
+
+```sh
+sudo apt install ./tincan_0.1.2_ubuntu24.04_amd64.deb   # Ubuntu 24.04, Mint 22
+sudo apt install ./tincan_0.1.2_amd64.deb               # Debian 13
+```
+
 ### AppImage
 
 ```sh
-chmod +x Tincan-0.1.1-x86_64.AppImage
-./Tincan-0.1.1-x86_64.AppImage
+chmod +x Tincan-0.1.2-x86_64.AppImage
+./Tincan-0.1.2-x86_64.AppImage
 ```
 
 The AppImage bundles Qt, QtKeychain and the other libraries Tincan needs. It
-is built on Debian 13 and needs glibc 2.41 or newer. If FUSE is not available,
-run it with `--appimage-extract-and-run`.
-
-### Debian / Ubuntu package
-
-For Debian 13 (trixie) and distributions of the same generation:
-
-```sh
-sudo apt install ./tincan_0.1.1_amd64.deb
-```
+is built on Ubuntu 24.04 and needs glibc 2.39 or newer. If FUSE is not
+available, run it with `--appimage-extract-and-run`.
 
 ### Flatpak
 
@@ -85,7 +94,8 @@ flatpak-builder --user --install --force-clean build-flatpak \
 
 ### Build from source
 
-Install the build dependencies (Debian 13 / trixie):
+Tincan needs CMake 3.25 and Qt 6.4 or newer. Install the build dependencies
+(Debian 13 / trixie and Ubuntu 24.04 use the same package names):
 
 ```sh
 sudo apt-get install \

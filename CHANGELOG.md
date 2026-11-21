@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-11-21
+
+Packages for Ubuntu 24.04 and Linux Mint 22.
+
+### Added
+
+- Ubuntu 24.04 / Linux Mint 22 package,
+  `tincan_0.1.2_ubuntu24.04_amd64.deb`, built on Ubuntu 24.04 and attached
+  to each release next to the Debian 13 package. Its package version,
+  `0.1.2~ubuntu24.04`, sorts below the plain `0.1.2`.
+
+### Changed
+
+- The AppImage is built on Ubuntu 24.04 and now runs on glibc 2.39 or newer
+  (it needed glibc 2.41 before).
+- Qt 6.4 is the minimum supported Qt version; Tincan builds and its tests
+  pass on Qt 6.4 (Ubuntu 24.04) and Qt 6.8 (Debian 13).
+- The run-time Qt plugin packages of the `.deb` (SQLite driver, SVG icon
+  engine, platform plugins) are found from the build machine's Qt
+  installation instead of being hard-coded Debian package names.
+
 ## [0.1.1] - 2026-11-18
 
 Security and reliability fixes from a second review of 0.1.0.
@@ -84,6 +105,7 @@ First public release.
   copyright file; release workflow that publishes the packages with
   `SHA256SUMS`.
 
-[Unreleased]: https://github.com/martinsaul/tincan/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/martinsaul/tincan/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/martinsaul/tincan/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/martinsaul/tincan/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/martinsaul/tincan/releases/tag/v0.1.0
