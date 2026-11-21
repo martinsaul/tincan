@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-11-21
+
 ### Added
 
 - Keypad tones: pressing a digit on the dialpad, the in-call keypad or the
@@ -114,7 +116,8 @@ First public release.
   copyright file; release workflow that publishes the packages with
   `SHA256SUMS`.
 
-[Unreleased]: https://github.com/martinsaul/tincan/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/martinsaul/tincan/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/martinsaul/tincan/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/martinsaul/tincan/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/martinsaul/tincan/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/martinsaul/tincan/releases/tag/v0.1.0

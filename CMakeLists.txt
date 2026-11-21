@@ -4,7 +4,7 @@
 cmake_minimum_required(VERSION 3.25)
 
 project(tincan
-    VERSION 0.1.2
+    VERSION 0.1.3
     DESCRIPTION "Lightweight SIP softphone for Linux"
     HOMEPAGE_URL "https://github.com/martinsaul/tincan"
     LANGUAGES CXX)

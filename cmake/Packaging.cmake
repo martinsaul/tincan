@@ -56,7 +56,7 @@ set(CPACK_DEBIAN_PACKAGE_NAME "tincan")
 set(CPACK_DEBIAN_PACKAGE_VERSION "${PROJECT_VERSION}${TINCAN_DEB_VERSION_SUFFIX}")
 if(TINCAN_DEB_VERSION_SUFFIX)
     # GitHub stores "~" in release asset names as ".", so the file name uses
-    # "_<tag>" instead: tincan_0.1.2_ubuntu24.04_amd64.deb.
+    # "_<tag>" instead: tincan_0.1.3_ubuntu24.04_amd64.deb.
     string(REGEX REPLACE "^~" "" _tincan_deb_tag "${TINCAN_DEB_VERSION_SUFFIX}")
     execute_process(COMMAND dpkg --print-architecture
         OUTPUT_VARIABLE _tincan_deb_arch OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
