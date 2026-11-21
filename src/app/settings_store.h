@@ -42,6 +42,7 @@ struct AudioSettings {
 
 struct CallSettings {
     DtmfMethod dtmfMethod = DtmfMethod::Rfc4733;
+    bool keypadTones = true;
     AutoAnswerMode autoAnswerMode = AutoAnswerMode::Off;
     int autoAnswerDelaySec = 0;
     bool dnd = false;

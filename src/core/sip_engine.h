@@ -12,6 +12,7 @@
 #include "core/presence_info.h"
 #include "core/tone.h"
 
+#include <QChar>
 #include <QList>
 #include <QString>
 
@@ -52,6 +53,9 @@ public:
 
     virtual void startTone(Tone tone, const QString &customWav = {}) = 0;
     virtual void stopTone() = 0;
+    // Short local feedback burst for a keypad digit. Plays on the speaker only;
+    // it is never mixed into a call, the microphone path or a recording.
+    virtual void playKeypadTone(QChar digit) = 0;
 
     virtual bool subscribePresence(const QString &accountId, const QString &uri) = 0;
     virtual void unsubscribePresence(const QString &uri) = 0;

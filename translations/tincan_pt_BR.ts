@@ -648,6 +648,14 @@
         <source>Select Recordings Directory</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Play keypad tones</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Play each pressed digit&apos;s tone on your speaker. The caller does not hear it.</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>tincan::ui::ChatWindow</name>

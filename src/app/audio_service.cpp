@@ -3,6 +3,8 @@
 
 #include "app/audio_service.h"
 
+#include "core/dtmf_tone.h"
+
 #include <QSet>
 
 #include <algorithm>
@@ -64,6 +66,14 @@ void AudioService::startRingtonePreview(const QString &wavPath) {
 
 void AudioService::stopRingtonePreview() {
     engine_.stopTone();
+}
+
+void AudioService::playKeypadTone(const QString &digit) {
+    if (digit.size() != 1 || !dtmfTonePair(digit.front()).has_value() ||
+        !settings_.callSettings().keypadTones) {
+        return;
+    }
+    engine_.playKeypadTone(digit.front());
 }
 
 void AudioService::applyToEngine(const AudioSettings &settings) {

@@ -31,6 +31,8 @@ public:
 
 signals:
     void inCallKeypadShownChanged(bool shown);
+    // An in-call keypad key was pressed (the DTMF has already been sent).
+    void keypadDigitPressed(const QString &digit);
 
 private:
     CallInfo enrichWithContactName(CallInfo info) const;

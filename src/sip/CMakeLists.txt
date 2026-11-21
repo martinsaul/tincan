@@ -13,6 +13,7 @@ add_library(tincan_sip STATIC
     conference_bridge.cpp
     event_marshaller.h
     event_marshaller.cpp
+    keypad_tone_player.cpp
     pj_version.cpp
     pjsip_engine.cpp
     presence_mapper.cpp

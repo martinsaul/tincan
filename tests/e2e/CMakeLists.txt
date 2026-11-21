@@ -2,6 +2,7 @@
 # Copyright (C) 2026 Tincan contributors
 
 function(tincan_add_e2e_test test_name source_file)
+    # Extra arguments are additional libraries to link.
     add_executable(${test_name}
         pjsua_peer.cpp
         recording_events.h
@@ -19,6 +20,7 @@ function(tincan_add_e2e_test test_name source_file)
         Qt6::Test
         tincan_sip
         tincan_core
+        ${ARGN}
     )
     tincan_apply_warnings(${test_name})
     add_test(NAME ${test_name} COMMAND ${test_name})
@@ -30,3 +32,5 @@ tincan_add_e2e_test(tst_e2e_features tst_e2e_features.cpp)
 tincan_add_e2e_test(tst_e2e_p4 tst_e2e_p4.cpp)
 tincan_add_e2e_test(tst_e2e_mute tst_e2e_mute.cpp)
 tincan_add_e2e_test(tst_e2e_reuse tst_e2e_reuse.cpp)
+# Inspects conference ports directly, so it also links pjproject.
+tincan_add_e2e_test(tst_e2e_keypad_tones tst_e2e_keypad_tones.cpp Tincan::pjproject)

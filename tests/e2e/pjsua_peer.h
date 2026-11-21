@@ -6,6 +6,7 @@
 #include <QByteArray>
 #include <QProcess>
 #include <QString>
+#include <QStringList>
 
 namespace tincan::test {
 
@@ -19,6 +20,8 @@ public:
 
     bool start(int autoAnswerCode = 200, int durationSec = 30,
                const QString &destinationUri = {});
+    // Extra pjsua command-line options for the next start().
+    void setExtraArgs(const QStringList &args);
     void sendInput(const QByteArray &data);
     void stop();
 
@@ -31,6 +34,7 @@ private:
     static int allocateFreeUdpPort();
 
     QProcess process_;
+    QStringList extraArgs_;
     QByteArray capturedOutput_;
     int localPort_ = 0;
 };

@@ -16,6 +16,7 @@ namespace tincan::sip {
 class BuddyRegistry;
 class CallController;
 class EventMarshaller;
+class KeypadTonePlayer;
 class SipAccount;
 class SipEndpoint;
 class TonePlayer;
@@ -62,6 +63,9 @@ public:
 
     void startTone(Tone tone, const QString &customWav = {}) override;
     void stopTone() override;
+    void playKeypadTone(QChar digit) override;
+    // Conference slot of the keypad tone generator, or -1 when idle.
+    int keypadTonePortId() const;
 
     bool subscribePresence(const QString &accountId, const QString &uri) override;
     void unsubscribePresence(const QString &uri) override;
@@ -77,6 +81,7 @@ private:
     std::unique_ptr<EventMarshaller> marshaller_;
     std::unique_ptr<SipEndpoint> endpoint_;
     std::unique_ptr<TonePlayer> tonePlayer_;
+    std::unique_ptr<KeypadTonePlayer> keypadTones_;
     std::unique_ptr<CallController> callController_;
     std::unique_ptr<BuddyRegistry> buddyRegistry_;
     std::map<QString, std::unique_ptr<SipAccount>> accounts_;

@@ -118,6 +118,13 @@ The microphone is connected to calls and to call recordings only on the
 main thread. While a call is muted, its recording gets no microphone audio,
 so muted spans are silent on our side.
 
+Local keypad tones come from one reusable tone generator whose only
+connection is to the playback side of the sound device port (conference
+slot 0). Nothing transmits from it to a call or a recorder, and slot 0's
+outgoing audio is the microphone, not what is played to it, so the far end
+and recordings never get the tone. The generator is released after a short
+idle period.
+
 ### Data
 
 - Config: `$XDG_CONFIG_HOME/tincan/tincan.ini` (QSettings, INI).
@@ -148,8 +155,9 @@ so muted spans are silent on our side.
 - `tests/e2e`: starts `pjsua` (built from the same PJSIP tree) on
   loopback with `--null-audio --auto-answer=200`, runs Tincan's engine
   with a null audio device, and asserts: direct-IP call connects, DTMF
-  sends, hold/resume re-INVITEs, hang-up, incoming call auto-answer,
-  SIP MESSAGE both ways, blind transfer.
+  sends while the local keypad tone stays off the wire, hold/resume
+  re-INVITEs, hang-up, incoming call auto-answer, SIP MESSAGE both ways,
+  blind transfer.
 - UI smoke test under `xvfb-run` with `QT_QPA_PLATFORM=offscreen`.
 
 ## Packaging

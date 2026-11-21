@@ -284,6 +284,7 @@ CallSettings SettingsStore::callSettings() const {
     CallSettings c;
     settings_.beginGroup(QStringLiteral("calls"));
     c.dtmfMethod = dtmfFromString(settings_.value(QStringLiteral("dtmfMethod")).toString());
+    c.keypadTones = settings_.value(QStringLiteral("keypadTones"), true).toBool();
     c.autoAnswerMode =
         autoAnswerFromString(settings_.value(QStringLiteral("autoAnswerMode")).toString());
     c.autoAnswerDelaySec = settings_.value(QStringLiteral("autoAnswerDelaySec"), 0).toInt();
@@ -304,6 +305,7 @@ CallSettings SettingsStore::callSettings() const {
 void SettingsStore::setCallSettings(const CallSettings &settings) {
     settings_.beginGroup(QStringLiteral("calls"));
     settings_.setValue(QStringLiteral("dtmfMethod"), dtmfToString(settings.dtmfMethod));
+    settings_.setValue(QStringLiteral("keypadTones"), settings.keypadTones);
     settings_.setValue(QStringLiteral("autoAnswerMode"), autoAnswerToString(settings.autoAnswerMode));
     settings_.setValue(QStringLiteral("autoAnswerDelaySec"), settings.autoAnswerDelaySec);
     settings_.setValue(QStringLiteral("dnd"), settings.dnd);

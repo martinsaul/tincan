@@ -250,6 +250,10 @@ void FakeSipEngine::stopTone() {
     currentTone.reset();
 }
 
+void FakeSipEngine::playKeypadTone(QChar digit) {
+    keypadTones.append(digit);
+}
+
 bool FakeSipEngine::subscribePresence(const QString &accountId, const QString &uri) {
     if (!activeAccounts.contains(accountId) || uri.trimmed().isEmpty()) {
         return false;

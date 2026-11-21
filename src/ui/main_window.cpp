@@ -108,6 +108,10 @@ void MainWindow::connectSignals() {
     connect(callPanel_, &CallPanel::inCallKeypadShownChanged, this,
             &MainWindow::onInCallKeypadShown);
     connect(dialpad_, &DialpadWidget::dialRequested, this, &MainWindow::onDialRequested);
+    connect(dialpad_, &DialpadWidget::digitPressed, &audioService_,
+            &AudioService::playKeypadTone);
+    connect(callPanel_, &CallPanel::keypadDigitPressed, &audioService_,
+            &AudioService::playKeypadTone);
     connect(contactsView_, &ContactsView::callRequested, this,
             &MainWindow::onDialOnAccountRequested);
     connect(contactsView_, &ContactsView::messageRequested, this,
@@ -221,6 +225,7 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
             if (activeId >= 0 && (keyEvent->modifiers() & disallowed) == 0 && typed.size() == 1 &&
                 isDtmfKeyChar(typed.front())) {
                 (void)callService_.sendDtmf(activeId, typed);
+                audioService_.playKeypadTone(typed);
                 return true;
             }
         }

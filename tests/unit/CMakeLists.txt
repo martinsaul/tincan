@@ -45,7 +45,8 @@ foreach(svc_test IN ITEMS
         tst_contactservice
         tst_messageservice
         tst_notifier
-        tst_commanddispatcher)
+        tst_commanddispatcher
+        tst_keypadtones)
     add_executable(${svc_test}
         ${svc_test}.cpp
         "${CMAKE_SOURCE_DIR}/tests/fakes/fake_sip_engine.cpp"

@@ -8,6 +8,7 @@
 #include "sip/buddy_registry.h"
 #include "sip/call_controller.h"
 #include "sip/event_marshaller.h"
+#include "sip/keypad_tone_player.h"
 #include "sip/sip_account.h"
 #include "sip/sip_endpoint.h"
 #include "sip/tone_player.h"
@@ -33,6 +34,7 @@ PjsipEngine::PjsipEngine(ISipEvents &events)
     : events_(events), marshaller_(std::make_unique<EventMarshaller>()),
       endpoint_(std::make_unique<SipEndpoint>()),
       tonePlayer_(std::make_unique<TonePlayer>(*endpoint_)),
+      keypadTones_(std::make_unique<KeypadTonePlayer>(*endpoint_)),
       callController_(std::make_unique<CallController>(
           events_, *endpoint_, *marshaller_,
           [this](const QString &accId, const QString &uri) {
@@ -55,6 +57,7 @@ void PjsipEngine::shutdown() {
 
     callController_->stopAllMedia();
     tonePlayer_->stopTone();
+    keypadTones_->release();
     endpoint_->hangupAllCalls();
 
     QElapsedTimer timer;
@@ -203,6 +206,8 @@ void PjsipEngine::startTone(Tone tone, const QString &customWav) {
     tonePlayer_->startTone(tone, customWav);
 }
 void PjsipEngine::stopTone() { tonePlayer_->stopTone(); }
+void PjsipEngine::playKeypadTone(QChar digit) { keypadTones_->play(digit); }
+int PjsipEngine::keypadTonePortId() const { return keypadTones_->portId(); }
 
 bool PjsipEngine::subscribePresence(const QString &accountId, const QString &uri) {
     if (!endpoint_->isStarted()) {

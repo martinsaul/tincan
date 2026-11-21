@@ -37,6 +37,11 @@ QGroupBox *CallsPage::buildDialingAndAnswerGroup() {
     dtmfCombo_->addItem(tr("SIP INFO"), static_cast<int>(DtmfMethod::SipInfo));
     dtmfCombo_->addItem(tr("In-band audio"), static_cast<int>(DtmfMethod::InBand));
 
+    keypadTonesCheck_ = new QCheckBox(tr("Play keypad tones"), group);
+    keypadTonesCheck_->setObjectName(QStringLiteral("keypadTonesCheck"));
+    keypadTonesCheck_->setToolTip(
+        tr("Play each pressed digit's tone on your speaker. The caller does not hear it."));
+
     autoAnswerCombo_ = new QComboBox(group);
     autoAnswerCombo_->setObjectName(QStringLiteral("autoAnswerModeCombo"));
     autoAnswerCombo_->addItem(tr("Off"), static_cast<int>(AutoAnswerMode::Off));
@@ -50,6 +55,7 @@ QGroupBox *CallsPage::buildDialingAndAnswerGroup() {
     autoAnswerDelaySpin_->setSuffix(tr(" s"));
 
     form->addRow(tr("DTMF method:"), dtmfCombo_);
+    form->addRow(QString(), keypadTonesCheck_);
     form->addRow(tr("Auto-answer:"), autoAnswerCombo_);
     form->addRow(tr("Auto-answer delay:"), autoAnswerDelaySpin_);
     return group;
@@ -117,6 +123,7 @@ void CallsPage::loadFromSettings() {
     const CallSettings current = settingsStore_.callSettings();
     const int dtmfIdx = dtmfCombo_->findData(static_cast<int>(current.dtmfMethod));
     dtmfCombo_->setCurrentIndex(dtmfIdx >= 0 ? dtmfIdx : 0);
+    keypadTonesCheck_->setChecked(current.keypadTones);
 
     const int aaIdx = autoAnswerCombo_->findData(static_cast<int>(current.autoAnswerMode));
     autoAnswerCombo_->setCurrentIndex(aaIdx >= 0 ? aaIdx : 0);
@@ -134,6 +141,7 @@ void CallsPage::loadFromSettings() {
 void CallsPage::applyChanges() {
     CallSettings updated;
     updated.dtmfMethod = static_cast<DtmfMethod>(dtmfCombo_->currentData().toInt());
+    updated.keypadTones = keypadTonesCheck_->isChecked();
     updated.autoAnswerMode = static_cast<AutoAnswerMode>(autoAnswerCombo_->currentData().toInt());
     updated.autoAnswerDelaySec = autoAnswerDelaySpin_->value();
     updated.dnd = dndCheck_->isChecked();

@@ -126,6 +126,7 @@ public:
 
     void startTone(Tone tone, const QString &customWav = {}) override;
     void stopTone() override;
+    void playKeypadTone(QChar digit) override;
 
     bool subscribePresence(const QString &accountId, const QString &uri) override;
     void unsubscribePresence(const QString &uri) override;
@@ -179,6 +180,7 @@ public:
     QList<ToneRecord> startedTones;
     int stopToneCount = 0;
     std::optional<Tone> currentTone;
+    QString keypadTones;
 
     QMap<QString, QString> activePresenceSubscriptions;
     QList<PresenceSubRecord> subscribedPresences;

@@ -30,6 +30,10 @@ public:
     void startRingtonePreview(const QString &wavPath);
     void stopRingtonePreview();
 
+    // Local feedback for a pressed keypad key, when "Play keypad tones" is on.
+    // Only the speaker hears it; DTMF to a call is sent separately.
+    void playKeypadTone(const QString &digit);
+
 signals:
     void audioSettingsChanged(const tincan::AudioSettings &settings);
 

@@ -21,6 +21,14 @@
 
 namespace tincan::ui {
 
+namespace {
+
+bool isKeypadChar(QChar ch) {
+    return (ch >= u'0' && ch <= u'9') || ch == u'*' || ch == u'#';
+}
+
+} // namespace
+
 DialpadWidget::DialpadWidget(QWidget *parent) : QWidget(parent) {
     auto *root = new QVBoxLayout(this);
     root->setContentsMargins(10, 10, 10, 10);
@@ -37,6 +45,7 @@ DialpadWidget::DialpadWidget(QWidget *parent) : QWidget(parent) {
     numberEdit_->setFont(inputFont);
     numberEdit_->setMinimumHeight(36);
     connect(numberEdit_, &QLineEdit::returnPressed, this, &DialpadWidget::triggerDial);
+    numberEdit_->installEventFilter(this);
 
     backspaceButton_ = new QToolButton(this);
     backspaceButton_->setObjectName(QStringLiteral("backspaceButton"));
@@ -171,8 +180,25 @@ void DialpadWidget::keyPressEvent(QKeyEvent *event) {
     QWidget::keyPressEvent(event);
 }
 
+bool DialpadWidget::eventFilter(QObject *watched, QEvent *event) {
+    // Typing straight into the number field: report the key, let the edit insert it.
+    if (watched == numberEdit_ && event->type() == QEvent::KeyPress) {
+        const auto *keyEvent = static_cast<QKeyEvent *>(event);
+        const Qt::KeyboardModifiers disallowed =
+            Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier;
+        const QString typed = keyEvent->text();
+        // Letters stay silent here: they are usually part of a SIP URI.
+        if ((keyEvent->modifiers() & disallowed) == 0 && typed.size() == 1 &&
+            isKeypadChar(typed.front()) && !numberEdit_->isReadOnly()) {
+            emit digitPressed(typed);
+        }
+    }
+    return QWidget::eventFilter(watched, event);
+}
+
 void DialpadWidget::appendDigit(const QString &digit) {
     numberEdit_->insert(digit);
+    emit digitPressed(digit);
 }
 
 void DialpadWidget::backspace() {

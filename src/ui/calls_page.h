@@ -33,6 +33,7 @@ private:
 
     SettingsStore &settingsStore_;
     QComboBox *dtmfCombo_ = nullptr;
+    QCheckBox *keypadTonesCheck_ = nullptr;
     QComboBox *autoAnswerCombo_ = nullptr;
     QSpinBox *autoAnswerDelaySpin_ = nullptr;
     QCheckBox *dndCheck_ = nullptr;

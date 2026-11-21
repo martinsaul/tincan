@@ -41,6 +41,8 @@ bool PjsuaPeer::start(int autoAnswerCode, int durationSec, const QString &destin
     return false;
 }
 
+void PjsuaPeer::setExtraArgs(const QStringList &args) { extraArgs_ = args; }
+
 void PjsuaPeer::sendInput(const QByteArray &data) {
     if (process_.state() == QProcess::Running) {
         process_.write(data);
@@ -67,6 +69,7 @@ bool PjsuaPeer::tryStartOnce(int autoAnswerCode, int durationSec, const QString 
         QStringLiteral("--no-vad"),
         QStringLiteral("--duration=%1").arg(durationSec),
     };
+    args.append(extraArgs_);
     if (!destinationUri.isEmpty()) {
         args.push_back(destinationUri);
     }

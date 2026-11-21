@@ -27,9 +27,12 @@ public:
 
 signals:
     void dialRequested(const QString &number);
+    // A key was entered into the number, by button or keyboard (for keypad tones).
+    void digitPressed(const QString &digit);
 
 protected:
     void keyPressEvent(QKeyEvent *event) override;
+    bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
     void buildKeyGrid(QGridLayout *grid);

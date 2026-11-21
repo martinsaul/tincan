@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Keypad tones: pressing a digit on the dialpad, the in-call keypad or the
+  keyboard plays that key's DTMF dual tone (120 ms) on the speaker. During a
+  call DTMF is sent to the far end as before; the local tone is routed to
+  the playback device only, so the caller does not hear it and it is not
+  recorded. Turn it off with "Play keypad tones" in Settings > Calls (on by
+  default).
+
 ## [0.1.2] - 2026-11-21
 
 Packages for Ubuntu 24.04 and Linux Mint 22.

@@ -29,6 +29,7 @@
 
 #include <QAction>
 #include <QApplication>
+#include <QCheckBox>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
@@ -191,6 +192,20 @@ private slots:
         QCOMPARE(secrets.peekPassword(stored.first().id), QStringLiteral("VaultPass#42"));
     }
 
+    void callsPageKeypadTonesCheckboxPersists() {
+        SmokeRig rig;
+        QVERIFY(rig.tempDir.isValid());
+        for (const bool wanted : {false, true}) {
+            tincan::ui::SettingsDialog dlg(rig.accounts, rig.audio, rig.settings, rig.secrets);
+            auto *check = dlg.findChild<QCheckBox *>(QStringLiteral("keypadTonesCheck"));
+            QVERIFY(check != nullptr);
+            QCOMPARE(check->isChecked(), !wanted);
+            check->setChecked(wanted);
+            dlg.accept();
+            QCOMPARE(rig.settings.callSettings().keypadTones, wanted);
+        }
+    }
+
     void inCallControlsKeyboardDtmfAndBlindTransferWork() {
         SmokeRig rig;
         QVERIFY(rig.tempDir.isValid());
@@ -237,6 +252,50 @@ private slots:
         QTest::mouseClick(card->transferButton(), Qt::LeftButton);
         QCOMPARE(rig.engine.blindTransfers.size(), 1);
         QCOMPARE(rig.engine.blindTransfers.first().uri, QStringLiteral("sip:309@pbx.example.net"));
+    }
+
+    void dialpadAndInCallKeypadPlayLocalKeypadTones() {
+        SmokeRig rig;
+        QVERIFY(rig.tempDir.isValid());
+        QVERIFY(rig.accounts.addAccount(sampleOfficeAccount()));
+        QVERIFY(rig.settings.callSettings().keypadTones);
+        auto window = rig.makeWindow();
+        window->show();
+        QVERIFY(QTest::qWaitForWindowExposed(window.get()));
+
+        // Idle: dialpad buttons and keys typed into the dial field sound locally.
+        auto *key5 = window->dialpad()->findChild<QPushButton *>(QStringLiteral("dialKey_5"));
+        QVERIFY(key5 != nullptr);
+        QTest::mouseClick(key5, Qt::LeftButton);
+        QLineEdit *edit = window->dialpad()->numberEdit();
+        edit->setFocus();
+        QTest::keyClicks(edit, QStringLiteral("7#a+"));
+        QCOMPARE(edit->text(), QStringLiteral("57#a+"));
+        QCOMPARE(rig.engine.keypadTones, QStringLiteral("57#"));
+        QVERIFY(rig.engine.sentDtmf.isEmpty());
+
+        // In a call: DTMF still goes to the call and the tone plays locally.
+        window->dialpad()->clearText();
+        QVERIFY(rig.calls.dial(QStringLiteral("201")).isEmpty());
+        const int callId = rig.engine.dialedCalls.first().callId;
+        rig.engine.injectCallState(callId, tincan::CallState::Confirmed, 200);
+        QCoreApplication::processEvents();
+        tincan::ui::CallCard *card = window->callPanel()->cardForCall(callId);
+        QVERIFY(card != nullptr);
+        QTest::mouseClick(card->keypadButton(), Qt::LeftButton);
+        auto *key9 = card->dtmfPad()->findChild<QPushButton *>(QStringLiteral("dtmfKey_9"));
+        QVERIFY(key9 != nullptr);
+        QTest::mouseClick(key9, Qt::LeftButton);
+        QTest::keyClicks(window.get(), QStringLiteral("4"));
+        QCOMPARE(card->dtmfEcho(), QStringLiteral("94"));
+        QCOMPARE(rig.engine.keypadTones, QStringLiteral("57#94"));
+
+        tincan::CallSettings cs = rig.settings.callSettings();
+        cs.keypadTones = false;
+        rig.settings.setCallSettings(cs);
+        QTest::mouseClick(key9, Qt::LeftButton);
+        QCOMPARE(card->dtmfEcho(), QStringLiteral("949"));
+        QCOMPARE(rig.engine.keypadTones, QStringLiteral("57#94"));
     }
 
     void multiCallSwitchMergeAndDndBadgeWork() {

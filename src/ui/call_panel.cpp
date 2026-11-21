@@ -123,8 +123,10 @@ void CallPanel::connectCardSignals(CallCard *card) {
             [this](int id, bool hold) { (void)callService_.setHold(id, hold); });
     connect(card, &CallCard::muteToggled, this,
             [this](int id, bool mute) { (void)callService_.setMute(id, mute); });
-    connect(card, &CallCard::dtmfDigitPressed, this,
-            [this](int id, const QString &digit) { (void)callService_.sendDtmf(id, digit); });
+    connect(card, &CallCard::dtmfDigitPressed, this, [this](int id, const QString &digit) {
+        (void)callService_.sendDtmf(id, digit);
+        emit keypadDigitPressed(digit);
+    });
     connect(card, &CallCard::transferClicked, this, &CallPanel::openTransferDialog);
     connect(card, &CallCard::keypadToggled, this, [this](int, bool) { refreshKeypadShown(); });
     connect(card, &CallCard::recordToggled, this,

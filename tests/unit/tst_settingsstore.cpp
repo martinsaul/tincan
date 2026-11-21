@@ -4,6 +4,7 @@
 #include "app/settings_store.h"
 
 #include <QFile>
+#include <QSettings>
 #include <QFileDevice>
 #include <QTemporaryDir>
 #include <QTest>
@@ -160,6 +161,7 @@ private slots:
             const tincan::CallSettings def = defaultsReader.callSettings();
             QCOMPARE(def.dtmfMethod, tincan::DtmfMethod::Rfc4733);
             QCOMPARE(def.autoAnswerMode, tincan::AutoAnswerMode::Off);
+            QCOMPARE(def.keypadTones, true);
             QVERIFY(!def.recordingsDir.isEmpty());
             QVERIFY(def.recordingsDir.endsWith(QStringLiteral("Tincan")) ||
                     def.recordingsDir.endsWith(QStringLiteral("Recordings")));
@@ -194,6 +196,31 @@ private slots:
         QCOMPARE(loaded.forwardNoAnswerSec, 20);
         QCOMPARE(loaded.recordingsDir, customRecDir);
         QCOMPARE(loaded.autoRecord, true);
+    }
+
+    void keypadTonesDefaultOnAndPersistsBothWays() {
+        QTemporaryDir tempDir;
+        QVERIFY(tempDir.isValid());
+        const QString iniPath = tempDir.filePath(QStringLiteral("tincan.ini"));
+        QVERIFY(tincan::SettingsStore(iniPath).callSettings().keypadTones);
+
+        {
+            tincan::SettingsStore writer(iniPath);
+            tincan::CallSettings cs = writer.callSettings();
+            cs.keypadTones = false;
+            writer.setCallSettings(cs);
+        }
+        QSettings raw(iniPath, QSettings::IniFormat);
+        QCOMPARE(raw.value(QStringLiteral("calls/keypadTones")).toBool(), false);
+        QCOMPARE(tincan::SettingsStore(iniPath).callSettings().keypadTones, false);
+
+        {
+            tincan::SettingsStore writer(iniPath);
+            tincan::CallSettings cs = writer.callSettings();
+            cs.keypadTones = true;
+            writer.setCallSettings(cs);
+        }
+        QCOMPARE(tincan::SettingsStore(iniPath).callSettings().keypadTones, true);
     }
 
     void roundTripsWindowState() {
